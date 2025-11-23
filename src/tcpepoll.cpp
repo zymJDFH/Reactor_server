@@ -87,6 +87,7 @@ int main(int argc, char const *argv[])
                         std::cout<<"client closed"<<std::endl;
                         epoll_ctl(epfd,EPOLL_CTL_DEL,evs[i].data.fd,NULL);
                         close(evs[i].data.fd);
+                        break;
                     }else{
                         std::cout<<"recv "<<n<<" bytes:"<<std::string(buf,n)<<std::endl;
                         send(evs[i].data.fd,buf,strlen(buf),0);
