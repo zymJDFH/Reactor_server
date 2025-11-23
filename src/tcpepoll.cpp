@@ -1,2 +1,100 @@
-
 #include<sys/socket.h>
+#include<iostream>
+#include<sys/epoll.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>  
+#include<unistd.h>
+#include<cstring>
+#include <netinet/tcp.h>  
+int main(int argc, char const *argv[])
+{
+     if(argc!=3){
+        std::cout<<"ip port"<<std::endl;
+        return -1;
+    }
+    sockaddr_in servaddr;
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port=htons(atoi(argv[2]));
+    servaddr.sin_addr.s_addr=inet_addr(argv[1]);
+
+    int listenfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP);
+    if(listenfd<0){
+        std::cout<<"socket error"<<std::endl;
+        return -1;
+    }
+
+    // 设置listenfd的属性
+    int opt = 1; 
+    setsockopt(listenfd,SOL_SOCKET,SO_REUSEADDR,&opt,static_cast<socklen_t>(sizeof opt));    // 端口重用 防止端口处于time_wait 不能bind
+    setsockopt(listenfd,SOL_SOCKET,TCP_NODELAY   ,&opt,static_cast<socklen_t>(sizeof opt));    // 关闭Nagle 可传输小数据包
+    setsockopt(listenfd,SOL_SOCKET,SO_REUSEPORT ,&opt,static_cast<socklen_t>(sizeof opt));    
+    setsockopt(listenfd,SOL_SOCKET,SO_KEEPALIVE   ,&opt,static_cast<socklen_t>(sizeof opt)); 
+
+    if(bind(listenfd,(sockaddr*)&servaddr,sizeof(servaddr))<0){
+        std::cout<<"bind error"<<std::endl;
+        return -1;
+    }
+    if(listen(listenfd,128)!=0){
+        std::cout<<"listen error"<<std::endl;
+        return -1;  
+    }
+    int epfd=epoll_create(1);
+    epoll_event ev;
+    ev.events=EPOLLIN|EPOLLET;//边缘触发
+    ev.data.fd=listenfd;
+    struct epoll_event evs[1024];
+    if(epoll_ctl(epfd,EPOLL_CTL_ADD,listenfd,&ev)<0){
+        std::cout<<"epoll_ctl error"<<std::endl;
+        return -1;  
+    }
+    while(1){
+        int nready=epoll_wait(epfd,evs,1024,-1);
+        if(nready<0){
+            std::cout<<"epoll_wait error"<<std::endl;
+            return -1;  
+        }
+        if(nready==0){
+            std::cout<<"time out!"<<std::endl;
+            continue;
+        }
+        for(int i=0;i<nready;i++){
+            if(evs[i].data.fd==listenfd){
+                sockaddr_in clientaddr;
+                socklen_t clientlen=sizeof(clientaddr);
+                int connfd=accept4(listenfd,(sockaddr*)&clientaddr,&clientlen,SOCK_NONBLOCK);
+                if(connfd<0){
+                    std::cout<<"accept error"<<std::endl;
+                    continue;
+                }
+                std::cout<<connfd<<" connect success"<<std::endl;
+                ev.events=EPOLLIN|EPOLLET;
+                ev.data.fd=connfd;
+                if(epoll_ctl(epfd,EPOLL_CTL_ADD,connfd,&ev)<0){
+                    std::cout<<"epoll_ctl add connfd error"<<std::endl;
+                    continue;
+                }
+
+
+            }else{
+                char buf[1024];
+                bzero(&buf, sizeof(buf));
+                int n=read(evs[i].data.fd,buf,1024);
+                if(n<0){
+                    std::cout<<"read error"<<std::endl;
+                    continue;
+                }else if(n==0){
+                    std::cout<<"client closed"<<std::endl;
+                    epoll_ctl(epfd,EPOLL_CTL_DEL,evs[i].data.fd,NULL);
+                    close(evs[i].data.fd);
+                }else{
+                    std::cout<<"recv "<<n<<" bytes:"<<std::string(buf,n)<<std::endl;
+                    send(evs[i].data.fd,buf,strlen(buf),0);
+                }
+            }
+                
+        }
+    }
+
+
+    return 0;
+}
