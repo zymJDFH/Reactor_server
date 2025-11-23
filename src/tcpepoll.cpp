@@ -19,7 +19,7 @@ int main(int argc, char const *argv[])
 
     int listenfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP);
     if(listenfd<0){
-        std::cout<<"socket error"<<std::endl;
+        perror("socket() failed");
         return -1;
     }
 
@@ -31,31 +31,34 @@ int main(int argc, char const *argv[])
     setsockopt(listenfd,SOL_SOCKET,SO_KEEPALIVE   ,&opt,static_cast<socklen_t>(sizeof opt)); 
 
     if(bind(listenfd,(sockaddr*)&servaddr,sizeof(servaddr))<0){
-        std::cout<<"bind error"<<std::endl;
+        perror("bind() failed");
+        close(listenfd);
         return -1;
     }
     if(listen(listenfd,128)!=0){
-        std::cout<<"listen error"<<std::endl;
+        perror("bind() failed"); 
+        close(listenfd);
         return -1;  
     }
+    //创建epoll句柄
     int epfd=epoll_create(1);
+
     epoll_event ev;
-    ev.events=EPOLLIN|EPOLLET;//边缘触发
+    ev.events=EPOLLIN;//listenfd水平触发（持续触发）
     ev.data.fd=listenfd;
-    struct epoll_event evs[1024];
-    if(epoll_ctl(epfd,EPOLL_CTL_ADD,listenfd,&ev)<0){
-        std::cout<<"epoll_ctl error"<<std::endl;
-        return -1;  
-    }
+
+    epoll_ctl(epfd,EPOLL_CTL_ADD,listenfd,&ev);
+    //存放epoll_wait返回事件的数组
+    struct epoll_event evs[10];
     while(1){
-        int nready=epoll_wait(epfd,evs,1024,-1);
+        int nready=epoll_wait(epfd,evs,10,-1); //监测epfd中的所有fd
         if(nready<0){
-            std::cout<<"epoll_wait error"<<std::endl;
-            return -1;  
+            perror("epoll_wait() failed");
+            break;
         }
         if(nready==0){
-            std::cout<<"time out!"<<std::endl;
-            continue;
+           std::cout<<"epoll_wait() timeout."<<std::endl;;
+           continue;
         }
         for(int i=0;i<nready;i++){
             if(evs[i].data.fd==listenfd){
