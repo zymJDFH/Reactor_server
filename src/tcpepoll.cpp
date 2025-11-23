@@ -90,7 +90,7 @@ int main(int argc, char const *argv[])
                         break;
                     }else{
                         std::cout<<"recv "<<n<<" bytes:"<<std::string(buf,n)<<std::endl;
-                        send(evs[i].data.fd,buf,strlen(buf),0);
+                        send(evs[i].data.fd,buf,n,0);
                     }
                 }
                 
