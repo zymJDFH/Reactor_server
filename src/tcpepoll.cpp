@@ -64,6 +64,7 @@ int main(int argc, char const *argv[])
         for(int i=0;i<nready;i++){
             if(evs[i].events&EPOLLRDHUP){//异常断开场景 半关闭处理
                 printf("client(eventfd=%d) disconnected.\n",evs[i].data.fd);
+                epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
                 close(evs[i].data.fd);
             }else if(evs[i].events&(EPOLLIN|EPOLLPRI)){
                 if(evs[i].data.fd==listenfd){
@@ -75,7 +76,7 @@ int main(int argc, char const *argv[])
                     continue;
                 }
                 printf ("accept client(fd=%d,ip=%s,port=%d) ok.\n",connfd,inet_ntoa(clientaddr.sin_addr),ntohs(clientaddr.sin_port));
-                ev.events=EPOLLIN|EPOLLET;//减少事件触发次数 ，降低cpu开销
+                ev.events=EPOLLIN|EPOLLET|EPOLLRDHUP;//减少事件触发次数 ，降低cpu开销
                 ev.data.fd=connfd;
                 epoll_ctl(epfd,EPOLL_CTL_ADD,connfd,&ev);
 
@@ -83,26 +84,21 @@ int main(int argc, char const *argv[])
                     char buf[1024];
                     while(1){
                         bzero(&buf, sizeof(buf));
-                        ssize_t n=read(evs[i].data.fd,buf,1024);
-                        if(n<0){
-                            if (errno == EAGAIN || errno == EWOULDBLOCK){
-                                break;
-                            } 
-                            else {
-                                perror("read() failed"); 
-                                epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
-                                close(evs[i].data.fd);
+                        ssize_t nread=read(evs[i].data.fd,buf,1024);
+                        if(nread>0){
+                            printf("recv(eventfd=%d):%s\n",evs[i].data.fd,buf);
+                            send(evs[i].data.fd,buf,nread,0);
+                        }else if(nread==-1&&errno==EINTR){
+                            //读取信号时信号中断
+                            continue;
+                        }else if(nread == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK))){
                             break;
-                            }
-                        
-                        }else if(n==0){
-                            printf("client (fd=%d) closed.\n",evs[i].data.fd);
-                            epoll_ctl(epfd,EPOLL_CTL_DEL,evs[i].data.fd,NULL);
-                            close(evs[i].data.fd);
+                        }
+                        else if(nread==0){
+                            printf("client(eventfd=%d) disconnected.\n",evs[i].data.fd);
+                            epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
+                            close(evs[i].data.fd);           
                             break;
-                        }else{
-                            std::cout<<"recv "<<n<<" bytes:"<<std::string(buf,n)<<std::endl;
-                            send(evs[i].data.fd,buf,n,0);
                         }
                     }
                     
@@ -112,6 +108,7 @@ int main(int argc, char const *argv[])
 
             }else{//其他事件都为错误
                 printf("client(eventfd=%d) error.\n",evs[i].data.fd);
+                epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
                 close(evs[i].data.fd); 
             }
                 
