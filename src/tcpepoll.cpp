@@ -60,9 +60,13 @@ int main(int argc, char const *argv[])
            std::cout<<"epoll_wait() timeout."<<std::endl;;
            continue;
         }
-
+        
         for(int i=0;i<nready;i++){
-            if(evs[i].data.fd==listenfd){
+            if(evs[i].events&EPOLLRDHUP){//异常断开场景 半关闭处理
+                printf("client(eventfd=%d) disconnected.\n",evs[i].data.fd);
+                close(evs[i].data.fd);
+            }else if(evs[i].events&(EPOLLIN|EPOLLPRI)){
+                if(evs[i].data.fd==listenfd){
                 sockaddr_in clientaddr;
                 socklen_t len=sizeof(clientaddr);
                 int connfd=accept4(listenfd,(sockaddr*)&clientaddr,&len,SOCK_NONBLOCK);
@@ -75,33 +79,40 @@ int main(int argc, char const *argv[])
                 ev.data.fd=connfd;
                 epoll_ctl(epfd,EPOLL_CTL_ADD,connfd,&ev);
 
-            }else{
-                char buf[1024];
-                while(1){
-                    bzero(&buf, sizeof(buf));
-                    ssize_t n=read(evs[i].data.fd,buf,1024);
-                    if(n<0){
-                       if (errno == EAGAIN || errno == EWOULDBLOCK){
+                }else{
+                    char buf[1024];
+                    while(1){
+                        bzero(&buf, sizeof(buf));
+                        ssize_t n=read(evs[i].data.fd,buf,1024);
+                        if(n<0){
+                            if (errno == EAGAIN || errno == EWOULDBLOCK){
+                                break;
+                            } 
+                            else {
+                                perror("read() failed"); 
+                                epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
+                                close(evs[i].data.fd);
                             break;
-                        } 
-                        else {
-                            perror("read() failed"); 
-                            epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
+                            }
+                        
+                        }else if(n==0){
+                            printf("client (fd=%d) closed.\n",evs[i].data.fd);
+                            epoll_ctl(epfd,EPOLL_CTL_DEL,evs[i].data.fd,NULL);
                             close(evs[i].data.fd);
-                        break;
+                            break;
+                        }else{
+                            std::cout<<"recv "<<n<<" bytes:"<<std::string(buf,n)<<std::endl;
+                            send(evs[i].data.fd,buf,n,0);
                         }
-                    
-                    }else if(n==0){
-                        printf("client (fd=%d) closed.\n",evs[i].data.fd);
-                        epoll_ctl(epfd,EPOLL_CTL_DEL,evs[i].data.fd,NULL);
-                        close(evs[i].data.fd);
-                        break;
-                    }else{
-                        std::cout<<"recv "<<n<<" bytes:"<<std::string(buf,n)<<std::endl;
-                        send(evs[i].data.fd,buf,n,0);
                     }
+                    
                 }
-                
+            }
+            else if(evs[i].events&EPOLLOUT){
+
+            }else{//其他事件都为错误
+                printf("client(eventfd=%d) error.\n",evs[i].data.fd);
+                close(evs[i].data.fd); 
             }
                 
         }
