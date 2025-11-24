@@ -81,10 +81,18 @@ int main(int argc, char const *argv[])
                     bzero(&buf, sizeof(buf));
                     ssize_t n=read(evs[i].data.fd,buf,1024);
                     if(n<0){
-                        std::cout<<"read error"<<std::endl;
-                        continue;
+                       if (errno == EAGAIN || errno == EWOULDBLOCK){
+                            break;
+                        } 
+                        else {
+                            perror("read() failed"); 
+                            epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
+                            close(evs[i].data.fd);
+                        break;
+                        }
+                    
                     }else if(n==0){
-                        std::cout<<"client closed"<<std::endl;
+                        printf("client (fd=%d) closed.\n",evs[i].data.fd);
                         epoll_ctl(epfd,EPOLL_CTL_DEL,evs[i].data.fd,NULL);
                         close(evs[i].data.fd);
                         break;
@@ -98,7 +106,5 @@ int main(int argc, char const *argv[])
                 
         }
     }
-
-
     return 0;
 }
