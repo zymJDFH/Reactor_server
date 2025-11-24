@@ -6,16 +6,14 @@
 #include<unistd.h>
 #include<cstring>
 #include <netinet/tcp.h>  
+#include"InetAddress.h"
 int main(int argc, char const *argv[])
 {
      if(argc!=3){
         std::cout<<"ip port"<<std::endl;
         return -1;
     }
-    sockaddr_in servaddr;
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_port=htons(atoi(argv[2]));
-    servaddr.sin_addr.s_addr=inet_addr(argv[1]);
+    InetAddress servaddr(argv[1],atoi(argv[2]));
 
     int listenfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP);
     if(listenfd<0){
@@ -68,17 +66,18 @@ int main(int argc, char const *argv[])
                 close(evs[i].data.fd);
             }else if(evs[i].events&(EPOLLIN|EPOLLPRI)){
                 if(evs[i].data.fd==listenfd){
-                sockaddr_in clientaddr;
-                socklen_t len=sizeof(clientaddr);
-                int connfd=accept4(listenfd,(sockaddr*)&clientaddr,&len,SOCK_NONBLOCK);
-                if(connfd<0){
-                    std::cout<<"accept error"<<std::endl;
-                    continue;
-                }
-                printf ("accept client(fd=%d,ip=%s,port=%d) ok.\n",connfd,inet_ntoa(clientaddr.sin_addr),ntohs(clientaddr.sin_port));
-                ev.events=EPOLLIN|EPOLLET|EPOLLRDHUP;//减少事件触发次数 ，降低cpu开销
-                ev.data.fd=connfd;
-                epoll_ctl(epfd,EPOLL_CTL_ADD,connfd,&ev);
+                    sockaddr_in peeraddr;
+                    socklen_t len=sizeof(peeraddr);
+                    int clientfd=accept4(listenfd,(sockaddr*)&peeraddr,&len,SOCK_NONBLOCK);
+                    if(clientfd<0){
+                        std::cout<<"accept error"<<std::endl;
+                        continue;
+                    }
+                    InetAddress clientaddr(peeraddr);
+                    printf ("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientfd,clientaddr.ip(),clientaddr.port());
+                    ev.events=EPOLLIN|EPOLLET|EPOLLRDHUP;//减少事件触发次数 ，降低cpu开销
+                    ev.data.fd=clientfd;
+                    epoll_ctl(epfd,EPOLL_CTL_ADD,clientfd,&ev);
 
                 }else{
                     char buf[1024];
