@@ -7,6 +7,7 @@
 #include<cstring>
 #include <netinet/tcp.h>  
 #include"InetAddress.h"
+#include "Socket.h"
 int main(int argc, char const *argv[])
 {
      if(argc!=3){
@@ -14,38 +15,21 @@ int main(int argc, char const *argv[])
         return -1;
     }
     InetAddress servaddr(argv[1],atoi(argv[2]));
-
-    int listenfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP);
-    if(listenfd<0){
-        perror("socket() failed");
-        return -1;
-    }
-
-    // 设置listenfd的属性
-    int opt = 1; 
-    setsockopt(listenfd,SOL_SOCKET,SO_REUSEADDR,&opt,static_cast<socklen_t>(sizeof opt));    // 端口重用 防止端口处于time_wait 不能bind
-    setsockopt(listenfd,SOL_SOCKET,TCP_NODELAY   ,&opt,static_cast<socklen_t>(sizeof opt));    // 关闭Nagle 可传输小数据包
-    setsockopt(listenfd,SOL_SOCKET,SO_REUSEPORT ,&opt,static_cast<socklen_t>(sizeof opt));    
-    setsockopt(listenfd,SOL_SOCKET,SO_KEEPALIVE   ,&opt,static_cast<socklen_t>(sizeof opt)); 
-
-    if(bind(listenfd,(sockaddr*)&servaddr,sizeof(servaddr))<0){
-        perror("bind() failed");
-        close(listenfd);
-        return -1;
-    }
-    if(listen(listenfd,128)!=0){
-        perror("listen() failed"); 
-        close(listenfd);
-        return -1;  
-    }
+    Socket servsock(createNonBlocking());
+    servsock.setKeepAlive(true);
+    servsock.setReuseAddr(true);
+    servsock.setReusePort(true);
+    servsock.setTcpNoDelay(true);
+    servsock.bind(servaddr);
+    servsock.listen();
     //创建epoll句柄
     int epfd=epoll_create(1);
 
     epoll_event ev;
     ev.events=EPOLLIN;//listenfd水平触发（持续触发）
-    ev.data.fd=listenfd;
+    ev.data.fd=servsock.fd();
 
-    epoll_ctl(epfd,EPOLL_CTL_ADD,listenfd,&ev);
+    epoll_ctl(epfd,EPOLL_CTL_ADD,servsock.fd(),&ev);
     //存放epoll_wait返回事件的数组
     struct epoll_event evs[1024];
     while(1){
@@ -55,7 +39,7 @@ int main(int argc, char const *argv[])
             break;
         }
         if(nready==0){
-           std::cout<<"epoll_wait() timeout."<<std::endl;;
+           std::cout<<"epoll_wait() timeout."<<std::endl;
            continue;
         }
         
@@ -65,19 +49,14 @@ int main(int argc, char const *argv[])
                 epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
                 close(evs[i].data.fd);
             }else if(evs[i].events&(EPOLLIN|EPOLLPRI)){
-                if(evs[i].data.fd==listenfd){
-                    sockaddr_in peeraddr;
-                    socklen_t len=sizeof(peeraddr);
-                    int clientfd=accept4(listenfd,(sockaddr*)&peeraddr,&len,SOCK_NONBLOCK);
-                    if(clientfd<0){
-                        std::cout<<"accept error"<<std::endl;
-                        continue;
-                    }
-                    InetAddress clientaddr(peeraddr);
-                    printf ("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientfd,clientaddr.ip(),clientaddr.port());
+                if(evs[i].data.fd==servsock.fd()){
+                    InetAddress clientaddr;
+                    Socket *clientsock=new Socket(servsock.accept(clientaddr));//堆上
+                    printf("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientsock->fd(),clientaddr.ip(),clientaddr.port());
+
                     ev.events=EPOLLIN|EPOLLET|EPOLLRDHUP;//减少事件触发次数 ，降低cpu开销
-                    ev.data.fd=clientfd;
-                    epoll_ctl(epfd,EPOLL_CTL_ADD,clientfd,&ev);
+                    ev.data.fd=clientsock->fd();
+                    epoll_ctl(epfd,EPOLL_CTL_ADD,clientsock->fd(),&ev);
 
                 }else{
                     char buf[1024];

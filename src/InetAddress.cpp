@@ -1,4 +1,7 @@
 #include "InetAddress.h"
+InetAddress::InetAddress(){
+    
+}
 InetAddress::InetAddress(const std::string &ip,uint16_t port)
 {
     addr_.sin_family=AF_INET;
@@ -20,4 +23,8 @@ uint16_t InetAddress::port()const{
 }
 const sockaddr* InetAddress::addr()const{
     return (sockaddr*)&addr_;
+}
+
+void InetAddress::setAddr(sockaddr_in clientaddr){
+    addr_=clientaddr;
 }
