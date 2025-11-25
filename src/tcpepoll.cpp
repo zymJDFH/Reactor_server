@@ -8,6 +8,7 @@
 #include <netinet/tcp.h>  
 #include"InetAddress.h"
 #include "Socket.h"
+#include "Epoll.h"
 int main(int argc, char const *argv[])
 {
      if(argc!=3){
@@ -22,50 +23,34 @@ int main(int argc, char const *argv[])
     servsock.setTcpNoDelay(true);
     servsock.bind(servaddr);
     servsock.listen();
-    //创建epoll句柄
-    int epfd=epoll_create(1);
-
-    epoll_event ev;
-    ev.events=EPOLLIN;//listenfd水平触发（持续触发）
-    ev.data.fd=servsock.fd();
-
-    epoll_ctl(epfd,EPOLL_CTL_ADD,servsock.fd(),&ev);
-    //存放epoll_wait返回事件的数组
-    struct epoll_event evs[1024];
+    
+    Epoll ep;
+    ep.addfd(servsock.fd(),EPOLLIN);
+    //存放epoll_wait返回事件
+    std::vector<epoll_event>evs;
+ 
     while(1){
-        int nready=epoll_wait(epfd,evs,1024,-1); //监测epfd中的所有fd
-        if(nready<0){
-            perror("epoll_wait() failed");
-            break;
-        }
-        if(nready==0){
-           std::cout<<"epoll_wait() timeout."<<std::endl;
-           continue;
-        }
-        
-        for(int i=0;i<nready;i++){
-            if(evs[i].events&EPOLLRDHUP){//异常断开场景 半关闭处理
-                printf("client(eventfd=%d) disconnected.\n",evs[i].data.fd);
-                epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
-                close(evs[i].data.fd);
-            }else if(evs[i].events&(EPOLLIN|EPOLLPRI)){
-                if(evs[i].data.fd==servsock.fd()){
+        evs=ep.loop();
+
+        for(auto &ev:evs){
+            if(ev.events&EPOLLRDHUP){//异常断开场景 半关闭处理
+                printf("client(eventfd=%d) disconnected.\n",ev.data.fd);
+                epoll_ctl(ep.epollfd(), EPOLL_CTL_DEL, ev.data.fd, NULL);
+                close(ev.data.fd);
+            }else if(ev.events&(EPOLLIN|EPOLLPRI)){
+                if(ev.data.fd==servsock.fd()){
                     InetAddress clientaddr;
                     Socket *clientsock=new Socket(servsock.accept(clientaddr));//堆上
                     printf("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientsock->fd(),clientaddr.ip(),clientaddr.port());
-
-                    ev.events=EPOLLIN|EPOLLET|EPOLLRDHUP;//减少事件触发次数 ，降低cpu开销
-                    ev.data.fd=clientsock->fd();
-                    epoll_ctl(epfd,EPOLL_CTL_ADD,clientsock->fd(),&ev);
-
+                    ep.addfd(clientsock->fd(),EPOLLIN|EPOLLET|EPOLLRDHUP);//
                 }else{
                     char buf[1024];
                     while(1){
                         bzero(&buf, sizeof(buf));
-                        ssize_t nread=read(evs[i].data.fd,buf,1024);
+                        ssize_t nread=read(ev.data.fd,buf,1024);
                         if(nread>0){
-                            printf("recv(eventfd=%d):%s\n",evs[i].data.fd,buf);
-                            send(evs[i].data.fd,buf,nread,0);
+                            printf("recv(eventfd=%d):%s\n",ev.data.fd,buf);
+                            send(ev.data.fd,buf,nread,0);
                         }else if(nread==-1&&errno==EINTR){
                             //读取信号时信号中断
                             continue;
@@ -73,21 +58,21 @@ int main(int argc, char const *argv[])
                             break;
                         }
                         else if(nread==0){
-                            printf("client(eventfd=%d) disconnected.\n",evs[i].data.fd);
-                            epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
-                            close(evs[i].data.fd);           
+                            printf("client(eventfd=%d) disconnected.\n",ev.data.fd);
+                            epoll_ctl(ep.epollfd(), EPOLL_CTL_DEL, ev.data.fd, NULL);
+                            close(ev.data.fd);           
                             break;
                         }
                     }
                     
                 }
             }
-            else if(evs[i].events&EPOLLOUT){
+            else if(ev.events&EPOLLOUT){
 
             }else{//其他事件都为错误
-                printf("client(eventfd=%d) error.\n",evs[i].data.fd);
-                epoll_ctl(epfd, EPOLL_CTL_DEL, evs[i].data.fd, NULL);
-                close(evs[i].data.fd); 
+                printf("client(eventfd=%d) error.\n",ev.data.fd);
+                epoll_ctl(ep.epollfd(), EPOLL_CTL_DEL, ev.data.fd, NULL);
+                close(ev.data.fd); 
             }
                 
         }

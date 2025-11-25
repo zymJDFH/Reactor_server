@@ -1,0 +1,20 @@
+#pragma once
+#include <sys/epoll.h>
+#include <vector>
+#include<iostream>
+#include<unistd.h>
+#include <errno.h>
+#include<string.h>
+class Epoll{
+private:
+    static const int MaxEvents=100;
+    int epollfd_=-1;//epoll句柄
+    epoll_event events_[MaxEvents]; //存放epoll_wait返回事件的数组
+public:
+    Epoll();
+    ~Epoll();
+
+    void addfd(int fd,uint32_t op);
+    std::vector<epoll_event>loop(int timeout=-1);
+    int epollfd();
+};
