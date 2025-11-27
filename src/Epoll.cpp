@@ -10,19 +10,19 @@ Epoll::~Epoll(){
     ::close(epollfd_);
 }
 
-void Epoll::addfd(int fd,uint32_t op){
-    epoll_event ev;
-    ev.events=op;
-    ev.data.fd=fd;
+// void Epoll::addfd(int fd,uint32_t op){
+//     epoll_event ev;
+//     ev.events=op;
+//     ev.data.fd=fd;
     
-    if(epoll_ctl(epollfd_,EPOLL_CTL_ADD,fd,&ev)==-1){
-        printf("epoll_ctl() failed(%d).\n",errno); 
-        exit(-1);
-    }
+//     if(epoll_ctl(epollfd_,EPOLL_CTL_ADD,fd,&ev)==-1){
+//         printf("epoll_ctl() failed(%d).\n",errno); 
+//         exit(-1);
+//     }
     
-}
-std::vector<epoll_event> Epoll::loop(int timeout){
-    std::vector<epoll_event>evs;
+// }
+std::vector<Channel*> Epoll::loop(int timeout){
+    std::vector<Channel*>channels;
     bzero(events_,sizeof events_);
     int nready=epoll_wait(epollfd_,events_,MaxEvents,timeout); //监测epfd中的所有fd
     if(nready<0){
@@ -31,13 +31,33 @@ std::vector<epoll_event> Epoll::loop(int timeout){
     }
     if(nready==0){
         std::cout<<"epoll_wait() timeout."<<std::endl;
-        return evs;
+        return channels;
     }
     for(int i=0;i<nready;i++){
-        evs.push_back(events_[i]);
+        Channel *ch=(Channel*)events_[i].data.ptr;
+        ch->setrevents(events_[i].events);
+        channels.push_back(ch);
     }
-    return evs;
+    return channels;
 }
 int Epoll::epollfd(){
     return epollfd_;
+}
+//把channel添加到红黑树上
+void Epoll::updatechannel(Channel*ch){
+    epoll_event ev;
+    ev.data.ptr=ch;
+    ev.events=ch->events();
+    if(ch->inepoll()){
+        if(epoll_ctl(epollfd_,EPOLL_CTL_MOD,ch->fd(),&ev)==-1){
+            perror("epoll_ctl failed()");
+            exit(-1);
+        }
+    }else{
+        if(epoll_ctl(epollfd_,EPOLL_CTL_ADD,ch->fd(),&ev)==-1){
+            perror("epoll_ctl failed()");
+            exit(-1);
+        }
+        ch->setinepoll();
+    }
 }

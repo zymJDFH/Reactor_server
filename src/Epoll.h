@@ -5,6 +5,8 @@
 #include<unistd.h>
 #include <errno.h>
 #include<string.h>
+#include "Channel.h"
+class Channel;
 class Epoll{
 private:
     static const int MaxEvents=100;
@@ -13,8 +15,8 @@ private:
 public:
     Epoll();
     ~Epoll();
-
-    void addfd(int fd,uint32_t op);
-    std::vector<epoll_event>loop(int timeout=-1);
+    void updatechannel(Channel*ch);
+    //void addfd(int fd,uint32_t op);
+    std::vector<Channel*>loop(int timeout=-1);
     int epollfd();
 };

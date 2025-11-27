@@ -1,5 +1,5 @@
 #include "Socket.h"
-int createNonBlocking(){
+int createnonblocking(){
     int listenfd = socket(AF_INET, SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP);
     if(listenfd<0){
         printf("%s:%s:%d listen socket create error:%d\n", __FILE__, __FUNCTION__, __LINE__, errno);
@@ -15,19 +15,19 @@ Socket::~Socket(){
 int Socket::fd() const{
     return fd_;
 }
-void Socket::setReuseAddr(bool on){
+void Socket::setreuseaddr(bool on){
     int opt=on?1:0;
     ::setsockopt(fd_,SOL_SOCKET,SO_REUSEADDR,&opt,static_cast<socklen_t>(sizeof opt));
 }
-void Socket::setReusePort(bool on){
+void Socket::setreuseport(bool on){
     int opt=on?1:0;
     ::setsockopt(fd_,SOL_SOCKET,SO_REUSEPORT,&opt,static_cast<socklen_t>(sizeof opt));
 }
-void Socket::setTcpNoDelay(bool on){
+void Socket::settcpnodelay(bool on){
     int opt=on?1:0;
     ::setsockopt(fd_,IPPROTO_TCP,TCP_NODELAY,&opt,static_cast<socklen_t>(sizeof opt));
 }
-void Socket::setKeepAlive(bool on){
+void Socket::setkeepalive(bool on){
     int opt=on?1:0;
     ::setsockopt(fd_,SOL_SOCKET,SO_KEEPALIVE,&opt,static_cast<socklen_t>(sizeof opt));
 }
