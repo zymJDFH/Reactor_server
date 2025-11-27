@@ -6,6 +6,8 @@
 #include <errno.h>
 #include<string.h>
 #include "Channel.h"
+#include "InetAddress.h"
+#include "Socket.h"
 class Channel;
 class Epoll{
 private:
@@ -16,7 +18,7 @@ public:
     Epoll();
     ~Epoll();
     void updatechannel(Channel*ch);
-    //void addfd(int fd,uint32_t op);
+  
     std::vector<Channel*>loop(int timeout=-1);
     int epollfd();
 };

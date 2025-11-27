@@ -10,17 +10,6 @@ Epoll::~Epoll(){
     ::close(epollfd_);
 }
 
-// void Epoll::addfd(int fd,uint32_t op){
-//     epoll_event ev;
-//     ev.events=op;
-//     ev.data.fd=fd;
-    
-//     if(epoll_ctl(epollfd_,EPOLL_CTL_ADD,fd,&ev)==-1){
-//         printf("epoll_ctl() failed(%d).\n",errno); 
-//         exit(-1);
-//     }
-    
-// }
 std::vector<Channel*> Epoll::loop(int timeout){
     std::vector<Channel*>channels;
     bzero(events_,sizeof events_);
