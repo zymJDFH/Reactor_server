@@ -25,11 +25,10 @@ int main(int argc, char const *argv[])
     servsock.listen();
     
     Epoll ep;
-    //ep.addfd(servsock.fd(),EPOLLIN);
+    
     Channel *servchannel =new Channel(&ep,servsock.fd());
     servchannel->enablereading();
     //存放epoll_wait返回事件
-    //std::vector<epoll_event>evs;
  
     while(1){
         std::vector<Channel*>channels=ep.loop();
