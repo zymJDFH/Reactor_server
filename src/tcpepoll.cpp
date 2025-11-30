@@ -23,63 +23,15 @@ int main(int argc, char const *argv[])
     servsock.settcpnodelay(true);
     servsock.bind(servaddr);
     servsock.listen();
-    
     Epoll ep;
-    
-    Channel *servchannel =new Channel(&ep,servsock.fd(),true);
+    Channel *servchannel =new Channel(&ep,servsock.fd());
+    servchannel->setreadcallback(std::bind(&Channel::newconnection,servchannel,&servsock));
     servchannel->enablereading();
  
     while(1){
         std::vector<Channel*>channels=ep.loop();
-
         for(auto &ch:channels){
-            ch->haneleevent(&servsock);
-            // if(ch->revents()&EPOLLRDHUP){//异常断开场景 半关闭处理
-            //     printf("client(eventfd=%d) disconnected.\n",ch->fd());
-            //     epoll_ctl(ep.epollfd(), EPOLL_CTL_DEL, ch->fd(), NULL);
-            //     close(ch->fd());
-            // }else if(ch->revents()&(EPOLLIN|EPOLLPRI)){
-            //     if(ch==servchannel){
-            //         InetAddress clientaddr;
-            //         Socket *clientsock=new Socket(servsock.accept(clientaddr));//堆上
-            //         printf("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientsock->fd(),clientaddr.ip(),clientaddr.port());
-                   
-            //         Channel *clientchannel =new Channel(&ep,clientsock->fd(),false);
-            //         clientchannel->useet();
-            //         clientchannel->enablereading();
-
-            //     }else{
-            //         char buf[1024];
-            //         while(1){
-            //             bzero(&buf, sizeof(buf));
-            //             ssize_t nread=read(ch->fd(),buf,1024);
-            //             if(nread>0){
-            //                 printf("recv(eventfd=%d):%s\n",ch->fd(),buf);
-            //                 send(ch->fd(),buf,nread,0);
-            //             }else if(nread==-1&&errno==EINTR){
-            //                 //读取信号时信号中断
-            //                 continue;
-            //             }else if(nread == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK))){
-            //                 break;
-            //             }
-            //             else if(nread==0){
-            //                 printf("client(eventfd=%d) disconnected.\n",ch->fd());
-            //                 epoll_ctl(ep.epollfd(), EPOLL_CTL_DEL, ch->fd(), NULL);
-            //                 close(ch->fd());           
-            //                 break;
-            //             }
-            //         }
-                    
-            //     }
-            // }
-            // else if(ch->revents()&EPOLLOUT){
-
-            // }else{//其他事件都为错误
-            //     printf("client(eventfd=%d) error.\n",ch->fd());
-            //     epoll_ctl(ep.epollfd(), EPOLL_CTL_DEL, ch->fd(), NULL);
-            //     close(ch->fd()); 
-            // }
-                
+            ch->haneleevent();
         }
     }
     return 0;
