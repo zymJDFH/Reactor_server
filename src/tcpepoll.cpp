@@ -9,6 +9,7 @@
 #include"InetAddress.h"
 #include "Socket.h"
 #include "Epoll.h"
+#include "EventLoop.h"
 int main(int argc, char const *argv[])
 {
      if(argc!=3){
@@ -23,16 +24,12 @@ int main(int argc, char const *argv[])
     servsock.settcpnodelay(true);
     servsock.bind(servaddr);
     servsock.listen();
-    Epoll ep;
-    Channel *servchannel =new Channel(&ep,servsock.fd());
+
+    EventLoop loop;
+    Channel *servchannel =new Channel(loop.ep(),servsock.fd());
     servchannel->setreadcallback(std::bind(&Channel::newconnection,servchannel,&servsock));
     servchannel->enablereading();
- 
-    while(1){
-        std::vector<Channel*>channels=ep.loop();
-        for(auto &ch:channels){
-            ch->haneleevent();
-        }
-    }
+    
+    loop.run();
     return 0;
 }

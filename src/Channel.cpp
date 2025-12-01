@@ -33,7 +33,7 @@ void Channel::setinepoll(){
 void Channel::setrevents(uint32_t ev){
     revents_=ev;
 }
-void Channel::haneleevent(){
+void Channel::handleevent(){
     if(revents_&EPOLLRDHUP){//异常断开场景 半关闭处理
         printf("client(eventfd=%d) disconnected.\n",fd_);
         close(fd_);

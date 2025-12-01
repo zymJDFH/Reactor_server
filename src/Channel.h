@@ -4,7 +4,7 @@
 #include "Socket.h"
 #include <functional>
 class Epoll;
-class Channel{
+class Channel{//事件管理
 private:
     int fd_=-1;
     Epoll *ep_=nullptr;      //channel对应的fd
@@ -27,7 +27,7 @@ public:
     void enablereading();
     void setinepoll();
     void setrevents(uint32_t ev);
-    void haneleevent();
+    void handleevent();
     void newconnection(Socket *servsock);
     void onmessage();
     void setreadcallback(std::function<void()>fn);
