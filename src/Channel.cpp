@@ -48,15 +48,17 @@ void Channel::handleevent(){
     }
                 
 }
+#include "Connection.h"
 //处理新客户端的连接请求
 void Channel::newconnection(Socket *servsock){
     InetAddress clientaddr;
     Socket *clientsock=new Socket(servsock->accept(clientaddr));//堆上
     printf("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientsock->fd(),clientaddr.ip(),clientaddr.port());
-    Channel *clientchannel =new Channel(loop_,clientsock->fd());
-    clientchannel->setreadcallback(std::bind(&Channel::onmessage,clientchannel));
-    clientchannel->useet();
-    clientchannel->enablereading();
+    // Channel *clientchannel =new Channel(loop_,clientsock->fd());
+    // clientchannel->setreadcallback(std::bind(&Channel::onmessage,clientchannel));
+    // clientchannel->useet();
+    // clientchannel->enablereading();
+    Connection *conn =new Connection(loop_,clientsock);
 }
 //处理对端发送过来的消息
 void Channel::onmessage(){
