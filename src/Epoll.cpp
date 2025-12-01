@@ -29,9 +29,7 @@ std::vector<Channel*> Epoll::loop(int timeout){
     }
     return channels;
 }
-int Epoll::epollfd(){
-    return epollfd_;
-}
+
 //把channel添加到红黑树上
 void Epoll::updatechannel(Channel*ch){
     epoll_event ev;

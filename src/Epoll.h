@@ -9,6 +9,7 @@
 #include "InetAddress.h"
 #include "Socket.h"
 class Channel;
+
 class Epoll{
 private:
     static const int MaxEvents=100;
@@ -20,5 +21,5 @@ public:
     void updatechannel(Channel*ch);
   
     std::vector<Channel*>loop(int timeout=-1);
-    int epollfd();
+    
 };

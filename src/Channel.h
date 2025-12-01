@@ -1,13 +1,14 @@
 #pragma once
-#include "Epoll.h"
+#include "EventLoop.h"
 #include "sys/epoll.h"
 #include "Socket.h"
 #include <functional>
 class Epoll;
+class EventLoop;
 class Channel{//事件管理
 private:
     int fd_=-1;
-    Epoll *ep_=nullptr;      //channel对应的fd
+    EventLoop *loop_=nullptr;      //channel对应的fd
     bool inepoll_=false;    //channel是否已经添加到epoll树上
     uint32_t events_=0;  //fd_需要监视的事件
     uint32_t revents_=0; //fd_已发生的事件
@@ -15,7 +16,7 @@ private:
     std::function<void()>readcallback_; //fd读事件的回调函数
 
 public:
-    Channel(Epoll *ep,int fd);
+    Channel(EventLoop *loop,int fd);
     ~Channel();
 
     int fd();
