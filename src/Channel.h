@@ -30,7 +30,7 @@ public:
     void setinepoll();
     void setrevents(uint32_t ev);
     void handleevent();
-    void newconnection(Socket *servsock);
+    
     void onmessage();
     void setreadcallback(std::function<void()>fn);
 };

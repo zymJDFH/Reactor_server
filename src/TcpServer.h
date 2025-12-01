@@ -3,6 +3,7 @@
 #include "Channel.h"
 #include "Socket.h"
 #include "Acceptor.h"
+#include "Connection.h"
 class TcpServer{
 private:
     EventLoop loop_; //单线程一个事件循环
@@ -11,4 +12,5 @@ public:
     TcpServer(const std::string &ip,const uint16_t port);
     ~TcpServer();
     void start();
+    void newconnection(Socket *clientsock);
 };

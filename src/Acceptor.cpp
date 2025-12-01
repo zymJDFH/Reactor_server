@@ -11,11 +11,23 @@ Acceptor::Acceptor(EventLoop *loop,const std::string &ip,const uint16_t port):lo
 
    
     acceptchannel_ =new Channel(loop_,servsock_->fd());
-    acceptchannel_->setreadcallback(std::bind(&Channel::newconnection,acceptchannel_,servsock_));
+    acceptchannel_->setreadcallback(std::bind(&Acceptor::newconnection,this));
     acceptchannel_->enablereading();
 
 }
 Acceptor::~Acceptor(){
     delete servsock_;
     delete acceptchannel_;
+}
+#include "Connection.h"
+//处理新客户端的连接请求
+void Acceptor::newconnection(){
+    InetAddress clientaddr;
+    Socket *clientsock=new Socket(servsock_->accept(clientaddr));//堆上
+    printf("accept client(fd=%d,ip=%s,port=%d) ok.\n",clientsock->fd(),clientaddr.ip(),clientaddr.port());
+    newconnectioncb_(clientsock);
+}
+
+void Acceptor::setnewconnectioncb(std::function<void(Socket*)>fn){
+    newconnectioncb_=fn;
 }
