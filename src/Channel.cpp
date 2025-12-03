@@ -35,16 +35,14 @@ void Channel::setrevents(uint32_t ev){
 }
 void Channel::handleevent(){
     if(revents_&EPOLLRDHUP){//异常断开场景 半关闭处理
-        printf("client(eventfd=%d) disconnected.\n",fd_);
-        close(fd_);
+        closecallback_(); 
     }else if(revents_&(EPOLLIN|EPOLLPRI)){
         readcallback_();
     }
     else if(revents_&EPOLLOUT){
 
     }else{//其他事件都为错误
-        printf("client(eventfd=%d) error.\n",fd_);
-        close(fd_); 
+        errorcallback_(); 
     }
                 
 }
@@ -64,8 +62,7 @@ void Channel::onmessage(){
             break;
         }
         else if(nread==0){
-            printf("client(eventfd=%d) disconnected.\n",fd_);
-            close(fd_);           
+            closecallback_();        
             break;
         }
     }    
@@ -73,4 +70,10 @@ void Channel::onmessage(){
 
 void Channel::setreadcallback(std::function<void()>fn){
     readcallback_=fn;
+}
+void Channel::seterrorcallback(std::function<void()>fn){
+    errorcallback_=fn;
+}
+void Channel::setclosecallback(std::function<void()>fn){
+    closecallback_=fn;
 }

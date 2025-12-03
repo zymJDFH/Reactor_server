@@ -15,7 +15,8 @@ private:
     uint32_t revents_=0; //fd_已发生的事件
    // bool islisten_=false;
     std::function<void()>readcallback_; //fd读事件的回调函数
-
+    std::function<void()>closecallback_;
+    std::function<void()>errorcallback_;
 public:
     Channel(EventLoop *loop,int fd);
     ~Channel();
@@ -33,4 +34,8 @@ public:
     
     void onmessage();
     void setreadcallback(std::function<void()>fn);
+    void seterrorcallback(std::function<void()>fn);
+    void setclosecallback(std::function<void()>fn);
+     
+
 };
