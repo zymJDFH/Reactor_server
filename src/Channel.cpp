@@ -27,6 +27,18 @@ void Channel::enablereading(){
     events_|=EPOLLIN;
     loop_->updatechannel(this);
 }
+void Channel::disablereading(){
+    events_&=~EPOLLIN;
+    loop_->updatechannel(this);
+}
+void Channel::enablewriting(){
+    events_|=EPOLLOUT;
+    loop_->updatechannel(this);
+}  
+void Channel::disablewriting(){
+    events_&=~EPOLLOUT;
+    loop_->updatechannel(this);
+}
 void Channel::setinepoll(){
     inepoll_=true;
 }
@@ -35,38 +47,42 @@ void Channel::setrevents(uint32_t ev){
 }
 void Channel::handleevent(){
     if(revents_&EPOLLRDHUP){//异常断开场景 半关闭处理
+        printf("EPOLLRDHUP\n");
         closecallback_(); 
     }else if(revents_&(EPOLLIN|EPOLLPRI)){
+        printf("EPOLLIN|EPOLLPRI\n");
         readcallback_();
     }
     else if(revents_&EPOLLOUT){
-
+        printf("EPOLLOUT\n");
+        writecallback_();
     }else{//其他事件都为错误
+        printf("ERROR\n");
         errorcallback_(); 
     }
                 
 }
 //处理对端发送过来的消息
-void Channel::onmessage(){
-    char buf[1024];
-    while(1){
-        bzero(&buf, sizeof(buf));
-        ssize_t nread=read(fd_,buf,1024);
-        if(nread>0){
-            printf("recv(eventfd=%d):%s\n",fd_,buf);
-            send(fd_,buf,nread,0);
-        }else if(nread==-1&&errno==EINTR){
-            //读取信号时信号中断
-            continue;
-        }else if(nread == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK))){
-            break;
-        }
-        else if(nread==0){
-            closecallback_();        
-            break;
-        }
-    }    
-}
+// void Channel::onmessage(){
+//     char buf[1024];
+//     while(1){
+//         bzero(&buf, sizeof(buf));
+//         ssize_t nread=read(fd_,buf,1024);
+//         if(nread>0){
+//             printf("recv(eventfd=%d):%s\n",fd_,buf);
+//             send(fd_,buf,nread,0);
+//         }else if(nread==-1&&errno==EINTR){
+//             //读取信号时信号中断
+//             continue;
+//         }else if(nread == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK))){
+//             break;
+//         }
+//         else if(nread==0){
+//             closecallback_();        
+//             break;
+//         }
+//     }    
+// }
 
 void Channel::setreadcallback(std::function<void()>fn){
     readcallback_=fn;
@@ -76,4 +92,7 @@ void Channel::seterrorcallback(std::function<void()>fn){
 }
 void Channel::setclosecallback(std::function<void()>fn){
     closecallback_=fn;
+}
+void Channel::setwritecallback(std::function<void()>fn){
+    writecallback_=fn;
 }

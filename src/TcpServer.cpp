@@ -18,6 +18,7 @@ void TcpServer::newconnection(Socket *clientsock){
     Connection *conn =new Connection(&loop_,clientsock);
     conn->setclosecallback(std::bind(&TcpServer::closeconnection,this,std::placeholders::_1));
     conn->seterrorcallback(std::bind(&TcpServer::errorconnection,this,std::placeholders::_1));
+    conn->setonmessagecallback(std::bind(&TcpServer::onmessage,this,std::placeholders::_1,std::placeholders::_2));
     printf("new connection(fd=%d,ip=%s,port=%d) ok.\n",conn->fd(),conn->ip().c_str(),conn->port());
     conns_[conn->fd()]=conn;
 }
@@ -32,4 +33,11 @@ void TcpServer::errorconnection(Connection*conn){
     //close(conn->fd());
     conns_.erase(conn->fd());
     delete conn;
+}
+void TcpServer::onmessage(Connection*conn,std::string message){
+    message ="reply:"+message;
+    int len=message.size();
+    std::string tmpbuf((char*)&len,4);
+    tmpbuf.append(message);
+    conn->send(tmpbuf.data(),tmpbuf.size());
 }

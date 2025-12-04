@@ -17,4 +17,5 @@ public:
     void newconnection(Socket *clientsock);
     void closeconnection(Connection*conn);
     void errorconnection(Connection*conn);
+    void onmessage(Connection*conn,std::string message);
 };

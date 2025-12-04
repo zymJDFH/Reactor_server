@@ -2,6 +2,7 @@
 #include "EventLoop.h"
 #include "Socket.h"
 #include "Channel.h"
+#include "Buffer.h"
 class Connection
 {
 private:
@@ -10,9 +11,10 @@ private:
     Channel *clientchannel_;
     std::function<void(Connection*)>closecallback_;  
     std::function<void(Connection*)>errorcallback_; 
-     
-    
-public:
+    std::function<void(Connection*,std::string)>onmessagecallback_; 
+    Buffer inputbuffer_;
+    Buffer outputbuffer_;
+public: 
     Connection(EventLoop *loop,Socket *clientsock);
     ~Connection();
     int fd() const;
@@ -21,8 +23,12 @@ public:
 
     void closecallback();
     void errorcallback();
-
+    void writecallback();
     void setclosecallback(std::function<void(Connection*)>fn);
     void seterrorcallback(std::function<void(Connection*)>fn);
+    void setonmessagecallback(std::function<void(Connection*,std::string)>fn);
+
+    void onmessage();
+    void send(const char *data,size_t size);
 };
 

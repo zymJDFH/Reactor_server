@@ -20,5 +20,6 @@ public:
     void bind(InetAddress& servaddr);
     void listen(int backlog=128);
     int accept(InetAddress&clientaddr);
+    void setipport(const std::string &ip,uint16_t port);
 
 };

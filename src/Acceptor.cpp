@@ -13,7 +13,7 @@ Acceptor::Acceptor(EventLoop *loop,const std::string &ip,const uint16_t port):lo
     acceptchannel_ =new Channel(loop_,servsock_->fd());
     acceptchannel_->setreadcallback(std::bind(&Acceptor::newconnection,this));
     acceptchannel_->enablereading();
-
+ 
 }
 Acceptor::~Acceptor(){
     delete servsock_;
@@ -24,7 +24,7 @@ Acceptor::~Acceptor(){
 void Acceptor::newconnection(){
     InetAddress clientaddr;
     Socket *clientsock=new Socket(servsock_->accept(clientaddr));//堆上
-    
+    clientsock->setipport(clientaddr.ip(),clientaddr.port());
     newconnectioncb_(clientsock);
 }
 

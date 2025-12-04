@@ -44,17 +44,14 @@ void Socket::bind(InetAddress& servaddr){
         close(fd_);
         exit(-1);
     }
-    ip_=servaddr.ip();
-    port_=servaddr.port();
-
+    setipport(servaddr.ip(),servaddr.port());
 }
 int Socket::accept(InetAddress&clientaddr){
     sockaddr_in peeraddr;
     socklen_t len= sizeof(peeraddr);
     int clientfd=accept4(fd_,(sockaddr*)&peeraddr,&len,SOCK_NONBLOCK);
     clientaddr.setAddr(peeraddr);
-    ip_=clientaddr.ip();
-    port_=clientaddr.port();
+   
     return clientfd;
 }
 std::string Socket::ip()const{
@@ -62,4 +59,8 @@ std::string Socket::ip()const{
 }
 uint16_t Socket::port()const{
     return port_;
+}
+void Socket::setipport(const std::string &ip,uint16_t port){
+    ip_=ip;
+    port_=port;
 }
