@@ -94,6 +94,11 @@ void Connection::writecallback(){
     }
     if(outputbuffer_.size()==0){
         clientchannel_->disablewriting();
+        sendcompletecallback_(this);
     }
+}
+
+void Connection::setsendcompletecallback(std::function<void(Connection*)>fn){
+    sendcompletecallback_=fn;
 }
 

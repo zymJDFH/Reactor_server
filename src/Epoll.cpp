@@ -19,7 +19,6 @@ std::vector<Channel*> Epoll::loop(int timeout){
         exit(-1);
     }
     if(nready==0){
-        std::cout<<"epoll_wait() timeout."<<std::endl;
         return channels;
     }
     for(int i=0;i<nready;i++){
