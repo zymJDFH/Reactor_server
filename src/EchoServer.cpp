@@ -47,5 +47,5 @@ void EchoServer::HandleSendComplete(Connection *conn){
     std::cout<<"Message send complete."<<std::endl;
 }
 void EchoServer::HandleTimeOut(EventLoop *loop){
-    std::cout<<"EchoServer timeout."<<std::endl;
+    //std::cout<<"EchoServer timeout."<<std::endl;
 }

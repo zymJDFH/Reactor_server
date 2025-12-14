@@ -50,11 +50,11 @@ void Channel::handleevent(){
         printf("EPOLLRDHUP\n");
         closecallback_(); 
     }else if(revents_&(EPOLLIN|EPOLLPRI)){
-        printf("EPOLLIN|EPOLLPRI\n");
+        //printf("EPOLLIN|EPOLLPRI\n");
         readcallback_();
     }
     else if(revents_&EPOLLOUT){
-        printf("EPOLLOUT\n");
+        //printf("EPOLLOUT\n");
         writecallback_();
     }else{//其他事件都为错误
         printf("ERROR\n");
