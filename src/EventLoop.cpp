@@ -25,6 +25,10 @@ void EventLoop::run(){
 void EventLoop::updatechannel(Channel*ch){
     ep_->updatechannel(ch);
 }
+void EventLoop::removechannel(Channel*ch){
+    ep_->removechannel(ch);
+}
+
 //设置epollwait超时的回调函数
 void EventLoop::setepolltimeoutcallback(std::function<void(EventLoop*)>fn){
     epolltimeoutcallback_=fn;

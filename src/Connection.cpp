@@ -1,5 +1,5 @@
 #include "Connection.h"
-Connection::Connection(EventLoop *loop,Socket *clientsock):loop_(loop),clientsock_(clientsock){
+Connection::Connection(EventLoop *loop,Socket *clientsock):loop_(loop),clientsock_(clientsock),disconnect_(false){
     clientchannel_ =new Channel(loop_,clientsock->fd());
     clientchannel_->setreadcallback(std::bind(&Connection::onmessage,this));
     clientchannel_->setclosecallback(std::bind(&Connection::closecallback,this));
@@ -23,11 +23,14 @@ uint16_t Connection::port()const{
 } 
 
 void Connection::closecallback(){
-    // printf("client(eventfd=%d) disconnected.\n",fd());
-    // close(fd());
+    
+    disconnect_=true;
+    clientchannel_->remove();
     closecallback_(shared_from_this());
 }
 void Connection::errorcallback(){
+    disconnect_=true;
+    clientchannel_->remove();
     errorcallback_(shared_from_this());
 }
 
@@ -55,7 +58,6 @@ void Connection::onmessage(){
             continue;
         }else if(nread == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK))){
 
-           
             while(1){
                 int len;
                 memcpy(&len,inputbuffer_.data(),4);//获取报文头部
@@ -70,16 +72,20 @@ void Connection::onmessage(){
                 
                 onmessagecallback_(shared_from_this(),message);
             } 
-           
             break;
         }
         else if(nread==0){
+            //clientchannel_->remove();
             closecallback();        
             break;
         }
     }    
 }
 void Connection::send(const char *data,size_t size){
+    if(disconnect_==true){
+        printf("客户端连接已经断开，send()直接返回\n");
+        return ;
+    }
     outputbuffer_.appendwithhead(data,size);
     clientchannel_->enablewriting();
 }

@@ -48,6 +48,7 @@ void Channel::setrevents(uint32_t ev){
 void Channel::handleevent(){
     if(revents_&EPOLLRDHUP){//异常断开场景 半关闭处理
         printf("EPOLLRDHUP\n");
+        //remove();
         closecallback_(); 
     }else if(revents_&(EPOLLIN|EPOLLPRI)){
         //printf("EPOLLIN|EPOLLPRI\n");
@@ -58,31 +59,11 @@ void Channel::handleevent(){
         writecallback_();
     }else{//其他事件都为错误
         printf("ERROR\n");
+        //remove();
         errorcallback_(); 
     }
                 
 }
-//处理对端发送过来的消息
-// void Channel::onmessage(){
-//     char buf[1024];
-//     while(1){
-//         bzero(&buf, sizeof(buf));
-//         ssize_t nread=read(fd_,buf,1024);
-//         if(nread>0){
-//             printf("recv(eventfd=%d):%s\n",fd_,buf);
-//             send(fd_,buf,nread,0);
-//         }else if(nread==-1&&errno==EINTR){
-//             //读取信号时信号中断
-//             continue;
-//         }else if(nread == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK))){
-//             break;
-//         }
-//         else if(nread==0){
-//             closecallback_();        
-//             break;
-//         }
-//     }    
-// }
 
 void Channel::setreadcallback(std::function<void()>fn){
     readcallback_=fn;
@@ -96,3 +77,14 @@ void Channel::setclosecallback(std::function<void()>fn){
 void Channel::setwritecallback(std::function<void()>fn){
     writecallback_=fn;
 }
+
+void Channel::disableall(){
+    //取消全部事件
+    events_=0;
+    loop_->updatechannel(this);
+}     
+void Channel::remove(){
+    //从事件循环中删除Channel  
+    disableall();
+    loop_->removechannel(this);//从红黑树上删除fd
+}              

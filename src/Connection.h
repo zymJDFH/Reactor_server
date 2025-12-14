@@ -3,7 +3,8 @@
 #include "Socket.h"
 #include "Channel.h"
 #include "Buffer.h"
-#include "memory"
+#include <memory>
+#include <atomic>
 class Connection;
 using spConnection=std::shared_ptr<Connection>;
 class Connection :public std::enable_shared_from_this<Connection>
@@ -19,6 +20,8 @@ private:
     std::function<void(spConnection)>sendcompletecallback_; 
     Buffer inputbuffer_;
     Buffer outputbuffer_;
+    std::atomic_bool disconnect_;   //客户端连接是否断开，如果已经断开，设置为true
+
 public: 
     Connection(EventLoop *loop,Socket *clientsock);
     ~Connection();

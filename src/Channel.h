@@ -32,6 +32,8 @@ public:
     void disablereading();
     void enablewriting();   //注册写事件
     void disablewriting();
+    void disableall();      //取消全部事件
+    void remove();          //从事件循环中删除Channel
 
     void setinepoll();
     void setrevents(uint32_t ev);

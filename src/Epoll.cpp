@@ -47,3 +47,12 @@ void Epoll::updatechannel(Channel*ch){
         ch->setinepoll();
     }
 }
+void Epoll::removechannel(Channel*ch){
+    if(ch->inepoll()){
+        printf("removechannel(). \n");
+        if(epoll_ctl(epollfd_,EPOLL_CTL_DEL,ch->fd(),0)==-1){
+            perror("epoll_ctl failed()");
+            exit(-1);
+        }
+    }
+}
