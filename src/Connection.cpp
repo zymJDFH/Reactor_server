@@ -1,16 +1,18 @@
 #include "Connection.h"
-Connection::Connection(EventLoop *loop,Socket *clientsock):loop_(loop),clientsock_(clientsock),disconnect_(false){
-    clientchannel_ =new Channel(loop_,clientsock->fd());
+Connection::Connection(const std::unique_ptr<EventLoop>&loop,std::unique_ptr<Socket> clientsock)
+            :loop_(loop),clientsock_(std::move(clientsock)),disconnect_(false),clientchannel_(new Channel(loop_,clientsock_->fd()))
+{
+    //clientchannel_(new Channel(loop_,clientsock->fd()));
     clientchannel_->setreadcallback(std::bind(&Connection::onmessage,this));
     clientchannel_->setclosecallback(std::bind(&Connection::closecallback,this));
     clientchannel_->setwritecallback(std::bind(&Connection::writecallback,this));
     clientchannel_->seterrorcallback(std::bind(&Connection::errorcallback,this));
-    //clientchannel_->useet();
+    clientchannel_->useet();
     clientchannel_->enablereading();
 }
 Connection::~Connection(){
-    delete clientchannel_;
-    delete clientsock_;
+    //delete clientchannel_;
+    // delete clientsock_;
 }
 int Connection::fd() const{
     return clientsock_->fd();
@@ -50,8 +52,6 @@ void Connection::onmessage(){
         bzero(&buf, sizeof(buf));
         ssize_t nread=read(fd(),buf,1024);
         if(nread>0){
-            // printf("recv(eventfd=%d):%s\n",fd(),buf);
-            // send(fd(),buf,nread,0);
             inputbuffer_.append(buf,nread);
         }else if(nread==-1&&errno==EINTR){
             //读取信号时信号中断
@@ -75,7 +75,6 @@ void Connection::onmessage(){
             break;
         }
         else if(nread==0){
-            //clientchannel_->remove();
             closecallback();        
             break;
         }

@@ -1,6 +1,6 @@
 #include "Channel.h"
 
-Channel::Channel(EventLoop *loop,int fd):loop_(loop),fd_(fd){
+Channel::Channel(const std::unique_ptr<EventLoop>&loop,int fd):loop_(loop),fd_(fd){
 
 }
 Channel::~Channel(){
@@ -47,19 +47,13 @@ void Channel::setrevents(uint32_t ev){
 }
 void Channel::handleevent(){
     if(revents_&EPOLLRDHUP){//异常断开场景 半关闭处理
-        printf("EPOLLRDHUP\n");
-        //remove();
         closecallback_(); 
     }else if(revents_&(EPOLLIN|EPOLLPRI)){
-        //printf("EPOLLIN|EPOLLPRI\n");
         readcallback_();
     }
     else if(revents_&EPOLLOUT){
-        //printf("EPOLLOUT\n");
         writecallback_();
     }else{//其他事件都为错误
-        printf("ERROR\n");
-        //remove();
         errorcallback_(); 
     }
                 
@@ -82,6 +76,7 @@ void Channel::disableall(){
     //取消全部事件
     events_=0;
     loop_->updatechannel(this);
+    
 }     
 void Channel::remove(){
     //从事件循环中删除Channel  

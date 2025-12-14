@@ -8,11 +8,11 @@
 #include <map>
 class TcpServer{
 private:
-    EventLoop *mainloop_; //主事件循环
-    std::vector<EventLoop*>subloops_; //从事件循环
-    Acceptor *acceptor_;
-    ThreadPool *threadpool_;
+    std::unique_ptr<EventLoop>mainloop_; //主事件循环
+    std::vector<std::unique_ptr<EventLoop>>subloops_; //从事件循环
+    Acceptor acceptor_;
     int threadnum_;
+    ThreadPool threadpool_;
     std::map<int,spConnection>conns_;//一个TcpServer有多个Connection对象存在map容器中
     std::function<void(spConnection)>newconnectioncb_;
     std::function<void(spConnection)>closeconnectioncb_;
@@ -24,7 +24,7 @@ public:
     TcpServer(const std::string &ip,const uint16_t port,int threadnum=3);
     ~TcpServer();
     void start();
-    void newconnection(Socket * clientsock);
+    void newconnection(std::unique_ptr<Socket> clientsock);
     void closeconnection(spConnection conn);
     void errorconnection(spConnection conn);
     void onmessage(spConnection conn,std::string &message);

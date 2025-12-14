@@ -11,19 +11,19 @@ class Connection :public std::enable_shared_from_this<Connection>
 {
     
 private:
-    EventLoop *loop_;
-    Socket *clientsock_;
-    Channel *clientchannel_;
+    const std::unique_ptr<EventLoop>&loop_;
+    std::unique_ptr<Socket>clientsock_;
+    std::unique_ptr<Channel>clientchannel_;
+    Buffer inputbuffer_;
+    Buffer outputbuffer_;
+    std::atomic_bool disconnect_;   //客户端连接是否断开，如果已经断开，设置为true
     std::function<void(spConnection)>closecallback_;  
     std::function<void(spConnection)>errorcallback_; 
     std::function<void(spConnection,std::string&)>onmessagecallback_; 
     std::function<void(spConnection)>sendcompletecallback_; 
-    Buffer inputbuffer_;
-    Buffer outputbuffer_;
-    std::atomic_bool disconnect_;   //客户端连接是否断开，如果已经断开，设置为true
 
 public: 
-    Connection(EventLoop *loop,Socket *clientsock);
+    Connection(const std::unique_ptr<EventLoop>&loop,std::unique_ptr<Socket> clientsock);
     ~Connection();
     int fd() const;
     std::string ip()const;

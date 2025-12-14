@@ -1,35 +1,38 @@
 #include "TcpServer.h"
-TcpServer::TcpServer(const std::string &ip,const uint16_t port,int threadnum):threadnum_(threadnum)
+TcpServer::TcpServer(const std::string &ip,const uint16_t port,int threadnum)
+            :threadnum_(threadnum),mainloop_(new EventLoop),acceptor_(mainloop_,ip,port),threadpool_(threadnum,"IO")
 {
-    mainloop_=new EventLoop;
+    
     mainloop_->setepolltimeoutcallback(std::bind(&TcpServer::epolltimeout,this,std::placeholders::_1));
 
-    acceptor_ =new Acceptor(mainloop_,ip,port);
-    acceptor_->setnewconnectioncb(std::bind(&TcpServer::newconnection,this,std::placeholders::_1));
+    //acceptor_ =new Acceptor(mainloop_,ip,port);
+    acceptor_.setnewconnectioncb(std::bind(&TcpServer::newconnection,this,std::placeholders::_1));
     
-    threadpool_=new ThreadPool(threadnum,"IO");
+    //threadpool_=new ThreadPool(threadnum,"IO");
     //创建从事件循环
     for(int i=0;i<threadnum_;i++){
-        subloops_.push_back(new EventLoop);
+        
+        subloops_.emplace_back(new EventLoop);
         subloops_[i]->setepolltimeoutcallback(std::bind(&TcpServer::epolltimeout,this,std::placeholders::_1));
-        threadpool_->addtask(std::bind(&EventLoop::run,subloops_[i]));//在线程池中运行从事件循环
+        threadpool_.addtask(std::bind(&EventLoop::run,subloops_[i].get()));//在线程池中运行从事件循环
     }
 }
 TcpServer::~TcpServer(){
-    delete acceptor_;
-    delete mainloop_;
+    //delete acceptor_;
+    //delete mainloop_;
     //释放全部Connection对象
     // for(auto &it:conns_){
     //     delete it.second;
     // }
+    //delete threadpool_;
 }
 
 void TcpServer::start(){
     mainloop_->run();
 }
-void TcpServer::newconnection(Socket *clientsock){
+void TcpServer::newconnection(std::unique_ptr<Socket> clientsock){
     //Connection *conn =new Connection(mainloop_,clientsock);
-    spConnection conn(new Connection(subloops_[clientsock->fd()%threadnum_],clientsock));  //连接负载均衡策略
+    spConnection conn(new Connection(subloops_[clientsock->fd()%threadnum_],std::move(clientsock)));  //连接负载均衡策略
     conn->setclosecallback(std::bind(&TcpServer::closeconnection,this,std::placeholders::_1));
     conn->seterrorcallback(std::bind(&TcpServer::errorconnection,this,std::placeholders::_1));
     conn->setonmessagecallback(std::bind(&TcpServer::onmessage,this,std::placeholders::_1,std::placeholders::_2));

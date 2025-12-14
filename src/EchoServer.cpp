@@ -37,7 +37,7 @@ void EchoServer::HandleMessage(spConnection conn,std::string &message){
     //把业务添加到线程池的任务队列中
     threadpool_.addtask(std::bind(&EchoServer::OnMessage,this,conn,message));
 }
-//处理客户端的请求报文，用于天价给线程池
+//处理客户端的请求报文，用于添加给线程池
 void EchoServer::OnMessage(spConnection conn,std::string &message){
     message ="reply:"+message;  //回显业务
     conn->send(message.data(),message.size());  //发送数据
