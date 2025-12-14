@@ -4,7 +4,7 @@ Connection::Connection(EventLoop *loop,Socket *clientsock):loop_(loop),clientsoc
     clientchannel_->setreadcallback(std::bind(&Connection::onmessage,this));
     clientchannel_->setclosecallback(std::bind(&Connection::closecallback,this));
     clientchannel_->setwritecallback(std::bind(&Connection::writecallback,this));
-    clientchannel_->seterrorcallback(std::bind(&Connection::errorcallback,this));//?
+    clientchannel_->seterrorcallback(std::bind(&Connection::errorcallback,this));
     //clientchannel_->useet();
     clientchannel_->enablereading();
 }
@@ -37,7 +37,7 @@ void Connection::setclosecallback(std::function<void(Connection*)>fn){
 void Connection::seterrorcallback(std::function<void(Connection*)>fn){
     errorcallback_=fn;
 }
-void Connection::setonmessagecallback(std::function<void(Connection*,std::string)>fn){
+void Connection::setonmessagecallback(std::function<void(Connection*,std::string&)>fn){
     onmessagecallback_=fn;
 }
 //处理对端发送过来的消息
@@ -84,7 +84,7 @@ void Connection::onmessage(){
     }    
 }
 void Connection::send(const char *data,size_t size){
-    outputbuffer_.append(data,size);
+    outputbuffer_.appendwithhead(data,size);
     clientchannel_->enablewriting();
 }
 void Connection::writecallback(){

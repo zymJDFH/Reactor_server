@@ -5,8 +5,10 @@ EventLoop::EventLoop(){
 EventLoop::~EventLoop(){
     delete ep_;
 }
-
+#include <unistd.h>
+#include <sys/syscall.h>
 void EventLoop::run(){
+    printf("EventLoop::run() thread is %ld\n",syscall(SYS_gettid));
     while(1){
         std::vector<Channel*>channels=ep_->loop(10*1000);
         if(channels.size()==0){
