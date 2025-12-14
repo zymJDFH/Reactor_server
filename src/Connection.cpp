@@ -25,19 +25,19 @@ uint16_t Connection::port()const{
 void Connection::closecallback(){
     // printf("client(eventfd=%d) disconnected.\n",fd());
     // close(fd());
-    closecallback_(this);
+    closecallback_(shared_from_this());
 }
 void Connection::errorcallback(){
-    errorcallback_(this);
+    errorcallback_(shared_from_this());
 }
 
-void Connection::setclosecallback(std::function<void(Connection*)>fn){
+void Connection::setclosecallback(std::function<void(spConnection)>fn){
     closecallback_=fn;
 }
-void Connection::seterrorcallback(std::function<void(Connection*)>fn){
+void Connection::seterrorcallback(std::function<void(spConnection)>fn){
     errorcallback_=fn;
 }
-void Connection::setonmessagecallback(std::function<void(Connection*,std::string&)>fn){
+void Connection::setonmessagecallback(std::function<void(spConnection,std::string&)>fn){
     onmessagecallback_=fn;
 }
 //处理对端发送过来的消息
@@ -67,12 +67,8 @@ void Connection::onmessage(){
                 inputbuffer_.erase(0,len+4);
 
                 printf("message (eventfd=%d):%s\n",fd(),message.c_str());
-                // message ="reply:"+message;
-                // len=message.size();
-                // std::string tmpbuf((char*)&len,4);
-                // tmpbuf.append(message);
-                // send(fd(),tmpbuf.data(),tmpbuf.size(),0);
-                onmessagecallback_(this,message);
+                
+                onmessagecallback_(shared_from_this(),message);
             } 
            
             break;
@@ -94,11 +90,11 @@ void Connection::writecallback(){
     }
     if(outputbuffer_.size()==0){
         clientchannel_->disablewriting();
-        sendcompletecallback_(this);
+        sendcompletecallback_(shared_from_this());
     }
 }
 
-void Connection::setsendcompletecallback(std::function<void(Connection*)>fn){
+void Connection::setsendcompletecallback(std::function<void(spConnection)>fn){
     sendcompletecallback_=fn;
 }
 

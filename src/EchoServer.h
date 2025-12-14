@@ -14,14 +14,14 @@ public:
     EchoServer(const std::string &ip,const uint16_t port,int subthreadnum=3,int workthreadnum=5);
     ~EchoServer();
     void Start();
-    void HandleNewConnection(Connection *conn);
-    void HandleClose(Connection*conn);
-    void HandleError(Connection*conn);
-    void HandleMessage(Connection*conn,std::string &message);
-    void HandleSendComplete(Connection *conn);
+    void HandleNewConnection(spConnection conn);
+    void HandleClose(spConnection conn);
+    void HandleError(spConnection conn);
+    void HandleMessage(spConnection conn,std::string &message);
+    void HandleSendComplete(spConnection conn);
     void HandleTimeOut(EventLoop *loop);
 
-    void OnMessage(Connection*conn,std::string &message);   
+    void OnMessage(spConnection conn,std::string &message);   
 };
 
 

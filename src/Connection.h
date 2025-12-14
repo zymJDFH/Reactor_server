@@ -3,16 +3,20 @@
 #include "Socket.h"
 #include "Channel.h"
 #include "Buffer.h"
-class Connection
+#include "memory"
+class Connection;
+using spConnection=std::shared_ptr<Connection>;
+class Connection :public std::enable_shared_from_this<Connection>
 {
+    
 private:
     EventLoop *loop_;
     Socket *clientsock_;
     Channel *clientchannel_;
-    std::function<void(Connection*)>closecallback_;  
-    std::function<void(Connection*)>errorcallback_; 
-    std::function<void(Connection*,std::string&)>onmessagecallback_; 
-    std::function<void(Connection*)>sendcompletecallback_; 
+    std::function<void(spConnection)>closecallback_;  
+    std::function<void(spConnection)>errorcallback_; 
+    std::function<void(spConnection,std::string&)>onmessagecallback_; 
+    std::function<void(spConnection)>sendcompletecallback_; 
     Buffer inputbuffer_;
     Buffer outputbuffer_;
 public: 
@@ -25,10 +29,10 @@ public:
     void closecallback();
     void errorcallback();
     void writecallback();
-    void setclosecallback(std::function<void(Connection*)>fn);
-    void seterrorcallback(std::function<void(Connection*)>fn);
-    void setonmessagecallback(std::function<void(Connection*,std::string&)>fn);
-    void setsendcompletecallback(std::function<void(Connection*)>fn);
+    void setclosecallback(std::function<void(spConnection)>fn);
+    void seterrorcallback(std::function<void(spConnection)>fn);
+    void setonmessagecallback(std::function<void(spConnection,std::string&)>fn);
+    void setsendcompletecallback(std::function<void(spConnection)>fn);
 
     void onmessage();
     void send(const char *data,size_t size);
