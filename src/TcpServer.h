@@ -21,7 +21,7 @@ private:
     std::function<void(spConnection)>sendcompletecb_;
     std::function<void(EventLoop *)>timeoutcb_;
 public:
-    TcpServer(const std::string &ip,const uint16_t port,int threadnum=3);
+    TcpServer(const std::string &ip,const uint16_t port,int threadnum=5);
     ~TcpServer();
     void start();
     void newconnection(std::unique_ptr<Socket> clientsock);

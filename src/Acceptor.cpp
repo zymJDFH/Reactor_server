@@ -25,7 +25,7 @@ Acceptor::~Acceptor(){
 //处理新客户端的连接请求
 void Acceptor::newconnection(){
     InetAddress clientaddr;
-    std::unique_ptr<Socket> clientsock(new Socket(servsock_.accept(clientaddr)));
+    std::unique_ptr<Socket>clientsock(new Socket(servsock_.accept(clientaddr)));
     clientsock->setipport(clientaddr.ip(),clientaddr.port());
     newconnectioncb_(std::move(clientsock));    //回调TcpServer::newconnection
 }

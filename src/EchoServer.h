@@ -11,7 +11,7 @@ private:
     TcpServer tcpserver_;
     ThreadPool threadpool_;     //工作线程池
 public:
-    EchoServer(const std::string &ip,const uint16_t port,int subthreadnum=3,int workthreadnum=5);
+    EchoServer(const std::string &ip,const uint16_t port,int subthreadnum=1,int workthreadnum=2);
     ~EchoServer();
     void Start();
     void HandleNewConnection(spConnection conn);

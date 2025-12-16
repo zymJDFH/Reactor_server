@@ -30,9 +30,22 @@ TcpServer::~TcpServer(){
 void TcpServer::start(){
     mainloop_->run();
 }
-void TcpServer::newconnection(std::unique_ptr<Socket> clientsock){
+void TcpServer::newconnection(std::unique_ptr<Socket>clientsock){
     //Connection *conn =new Connection(mainloop_,clientsock);
-    spConnection conn(new Connection(subloops_[clientsock->fd()%threadnum_],std::move(clientsock)));  //连接负载均衡策略
+    // if (clientsock == nullptr) {
+    //     std::cerr << "newconnection: clientock is null!" << std::endl;
+    //     return;
+    //     std::cout<<111<<std::endl;;
+    // }else{
+    //     std::cout<<222<<std::endl;
+    // }
+    int fd = clientsock->fd();
+    int subloop_idx = fd % threadnum_;
+    //std::cerr << "newconnection: fd=" << fd << ", subloop_idx=" << subloop_idx << ", subloops_size=" << subloops_.size() << std::endl;
+
+    spConnection conn(new Connection(subloops_[subloop_idx],std::move(clientsock))); 
+    //spConnection conn(new Connection(subloops_[clientsock->fd()%threadnum_],std::move(clientsock)));  //连接负载均衡策略
+    
     conn->setclosecallback(std::bind(&TcpServer::closeconnection,this,std::placeholders::_1));
     conn->seterrorcallback(std::bind(&TcpServer::errorconnection,this,std::placeholders::_1));
     conn->setonmessagecallback(std::bind(&TcpServer::onmessage,this,std::placeholders::_1,std::placeholders::_2));
