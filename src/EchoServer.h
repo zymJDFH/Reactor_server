@@ -14,6 +14,7 @@ public:
     EchoServer(const std::string &ip,const uint16_t port,int subthreadnum=1,int workthreadnum=2);
     ~EchoServer();
     void Start();
+    void Stop();
     void HandleNewConnection(spConnection conn);
     void HandleClose(spConnection conn);
     void HandleError(spConnection conn);

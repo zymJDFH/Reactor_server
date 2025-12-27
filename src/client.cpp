@@ -35,9 +35,9 @@ int main(int argc, char *argv[])
     }
 
     printf("connect ok.\n");
-    // printf("开始时间：%d\n",time(0));
+    printf("开始时间：%ld\n",time(0));
 
-    for (int ii=0;ii<1;ii++)
+    for (int ii=0;ii<100000;ii++)
     {
         memset(buf,0,sizeof(buf));
         sprintf(buf,"这是第%d个超级女生。",ii);
@@ -49,19 +49,30 @@ int main(int argc, char *argv[])
         memcpy(tmpbuf+4,buf,len);  // 拼接报文内容。
 
         send(sockfd,tmpbuf,len+4,0);  // 把请求报文发送给服务端。
-    }
-    
-    for (int ii=0;ii<1;ii++)
-    {
-        int len;
+        
         recv(sockfd,&len,4,0);            // 先读取4字节的报文头部。
 
         memset(buf,0,sizeof(buf));
         recv(sockfd,buf,len,0);           // 读取报文内容。
 
-        printf("recv:%s\n",buf);
+        // printf("recv:%s\n",buf);
     }
+    printf("结束时间：%ld\n",time(0));
+
+    /*
+    for (int ii=0;ii<10;ii++)
+    {
+        memset(buf,0,sizeof(buf));
+        sprintf(buf,"这是第%d个超级女生。",ii);
+
+        send(sockfd,buf,strlen(buf),0);  // 把请求报文发送给服务端。
         
-    sleep(100);
-    // printf("结束时间：%d\n",time(0));
+        memset(buf,0,sizeof(buf));
+        recv(sockfd,buf,1024,0);           // 读取报文内容。
+
+        printf("recv:%s\n",buf);
+sleep(1);
+    }
+    */
+
 } 

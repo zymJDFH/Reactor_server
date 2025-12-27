@@ -1,5 +1,5 @@
 #include "Acceptor.h"
-Acceptor::Acceptor(const std::unique_ptr<EventLoop>&loop,const std::string &ip,const uint16_t port)
+Acceptor::Acceptor(EventLoop *loop,const std::string &ip,const uint16_t port)
             :loop_(loop),servsock_(createnonblocking()),acceptchannel_(loop_,servsock_.fd())
 {
     InetAddress servaddr(ip,port);

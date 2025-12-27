@@ -5,13 +5,16 @@
 #include "Buffer.h"
 #include <memory>
 #include <atomic>
+#include "Timestamp.h"
+class EventLoop;
 class Connection;
+class Channel;
 using spConnection=std::shared_ptr<Connection>;
 class Connection :public std::enable_shared_from_this<Connection>
 {
     
 private:
-    const std::unique_ptr<EventLoop>&loop_;
+    EventLoop *loop_;
     std::unique_ptr<Socket>clientsock_;
     std::unique_ptr<Channel>clientchannel_;
     Buffer inputbuffer_;
@@ -21,9 +24,10 @@ private:
     std::function<void(spConnection)>errorcallback_; 
     std::function<void(spConnection,std::string&)>onmessagecallback_; 
     std::function<void(spConnection)>sendcompletecallback_; 
+    Timestamp lasttime_;    //创建Connection对象时为当前时间，每接受到一个报文，把时间戳更新为当前时间
 
 public: 
-    Connection(const std::unique_ptr<EventLoop>&loop,std::unique_ptr<Socket> clientsock);
+    Connection(EventLoop *loop,std::unique_ptr<Socket> clientsock);
     ~Connection();
     int fd() const;
     std::string ip()const;
@@ -39,6 +43,8 @@ public:
 
     void onmessage();
     void send(const char *data,size_t size);
-   
+    //void sendinloop(const char *data,size_t size);
+    void sendinloop(std::shared_ptr<std::string>data);
+    bool timeout(time_t now,int val);
 };
 

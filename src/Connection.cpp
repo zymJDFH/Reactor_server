@@ -1,5 +1,5 @@
 #include "Connection.h"
-Connection::Connection(const std::unique_ptr<EventLoop>&loop,std::unique_ptr<Socket> clientsock)
+Connection::Connection(EventLoop *loop,std::unique_ptr<Socket> clientsock)
             :loop_(loop),clientsock_(std::move(clientsock)),disconnect_(false),clientchannel_(new Channel(loop_,clientsock_->fd()))
 {
     //clientchannel_(new Channel(loop_,clientsock->fd()));
@@ -11,8 +11,7 @@ Connection::Connection(const std::unique_ptr<EventLoop>&loop,std::unique_ptr<Soc
     clientchannel_->enablereading();
 }
 Connection::~Connection(){
-    //delete clientchannel_;
-    // delete clientsock_;
+    //printf("Connection 已析构\n");
 }
 int Connection::fd() const{
     return clientsock_->fd();
@@ -57,19 +56,12 @@ void Connection::onmessage(){
             //读取信号时信号中断
             continue;
         }else if(nread == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK))){
-
+            std::string message;
             while(1){
-                int len;
-                memcpy(&len,inputbuffer_.data(),4);//获取报文头部
-                if(inputbuffer_.size()<len+4){
-                    //报文不完整
-                    break;
+                if(inputbuffer_.pickmessage(message)==false){
+                    break; 
                 }
-                std::string message(inputbuffer_.data()+4,len);
-                inputbuffer_.erase(0,len+4);
-
-                printf("message (eventfd=%d):%s\n",fd(),message.c_str());
-                
+                lasttime_=Timestamp::now(); //更新时间戳
                 onmessagecallback_(shared_from_this(),message);
             } 
             break;
@@ -85,7 +77,22 @@ void Connection::send(const char *data,size_t size){
         printf("客户端连接已经断开，send()直接返回\n");
         return ;
     }
-    outputbuffer_.appendwithhead(data,size);
+    std::shared_ptr<std::string> message(new std::string(data));
+    //判断当前线程是否为IO线程
+    if(loop_->isinloopthread()){
+        //如果当前线程是IO线程，直接调用sendinloop()发送数据
+        //printf("send()在事件循环的线程中\n");
+        sendinloop(message);
+    }
+    else{
+        //如果当前线程不是IO线程，调用EventLoop::queueinloop(),把sendinloop()交给事件循环线程去执行
+        //printf("send()不在事件循环的线程中\n");
+        loop_->queueinloop(std::bind(&Connection::sendinloop,this,message));
+    }
+    
+}
+void Connection::sendinloop(std::shared_ptr<std::string>data){
+    outputbuffer_.appendwithsep(data->data(),data->size());
     clientchannel_->enablewriting();
 }
 void Connection::writecallback(){
@@ -101,5 +108,8 @@ void Connection::writecallback(){
 
 void Connection::setsendcompletecallback(std::function<void(spConnection)>fn){
     sendcompletecallback_=fn;
+}
+bool Connection::timeout(time_t now,int val){
+    return now-lasttime_.toint()>val;
 }
 

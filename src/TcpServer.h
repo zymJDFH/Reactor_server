@@ -6,6 +6,7 @@
 #include "Connection.h"
 #include "ThreadPool.h"
 #include <map>
+#include <mutex>
 class TcpServer{
 private:
     std::unique_ptr<EventLoop>mainloop_; //主事件循环
@@ -13,6 +14,7 @@ private:
     Acceptor acceptor_;
     int threadnum_;
     ThreadPool threadpool_;
+    std::mutex mmutex_;
     std::map<int,spConnection>conns_;//一个TcpServer有多个Connection对象存在map容器中
     std::function<void(spConnection)>newconnectioncb_;
     std::function<void(spConnection)>closeconnectioncb_;
@@ -24,6 +26,7 @@ public:
     TcpServer(const std::string &ip,const uint16_t port,int threadnum=5);
     ~TcpServer();
     void start();
+    void stop();    //停止io线程和事件循环
     void newconnection(std::unique_ptr<Socket> clientsock);
     void closeconnection(spConnection conn);
     void errorconnection(spConnection conn);
@@ -37,5 +40,7 @@ public:
     void setonmessagecb(std::function<void(spConnection,std::string &message)>fn);
     void setsendcompletecb(std::function<void(spConnection)>fn);
     void settimeoutcb(std::function<void(EventLoop *)>fn);
+
+    void removeconn(int fd);
 
 };

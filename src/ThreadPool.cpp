@@ -32,7 +32,7 @@ ThreadPool::ThreadPool(size_t threadnum,const std::string& threadtype):stop_(fal
 					this->taskqueue_.pop();
 				}   // 锁作用域的结束
 
-                printf("%s(%ld)execute task.\n",threadtype_.c_str(),syscall(SYS_gettid));
+                //printf("%s(%ld)execute task.\n",threadtype_.c_str(),syscall(SYS_gettid));
 				task();  // 执行任务。
 			}
 		});
@@ -51,7 +51,17 @@ void ThreadPool::addtask(std::function<void()> task)
 
 ThreadPool::~ThreadPool()
 {
-	stop_ = true;
+	stop();
+}
+size_t ThreadPool::size()
+{
+    return threads_.size();
+}
+void ThreadPool::stop(){
+    if(stop_){
+        return ;
+    }
+    stop_ = true;
 
 	condition_.notify_all();  // 唤醒全部的线程。
 
