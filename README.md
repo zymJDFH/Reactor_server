@@ -72,3 +72,81 @@ sh ./test.sh
 ```
 
 ## 三、模块设计
+### InetAddress
+```bash
+InetAddress是对底层sockaddr_in结构的RAII式封装，用来统一表示一个网络地址（IPv4地址+端口）。
+作用：1.存储和管理 sockaddr_in addr_
+      2.提供便捷的构造、查询和转换方法
+
+```
+### Socket
+```bash
+Socket 类是对原始 socket 文件描述符的RAII封装，负责socket的创建、配置、绑定、监听、接受等全部生命周期操作。
+作用：1.确保fd在析构时自动close
+      2.设置socket常用选项
+      3.提供面向对象的接口 ( bind accept listen...)
+```
+### Channel
+```bash
+Channel是事件分发和管理的核心桥梁，负责将fd与EventLoop关联起来，实现事件驱动编程。
+作用:  1.封装fd和事件(events_,revents_)
+       2.事件注册与更新
+       3.事件处理与回调
+
+```
+### Epoll
+```bash
+Epoll用来封装epoll的系统调用。
+作用：1.创建epoll实例
+      2.管理Channel的注册
+      3.等待就绪事件
+      4.高性能支撑（ET）
+
+```
+### EventLoop
+```bash
+事件循环核心，One Loop Per Thread
+作用：1.支持eventfd（跨线程唤醒），timerfd（超时检测）
+      2.MainLoop专责accept，SubLoop处理IO
+```
+### Acceptor
+```bash
+在主事件循环中负责监听并接受客户端新连接，将新连接分发给TcpServer处理。
+```
+### Connection
+```bash
+单个客户端连接的完整封装。
+作用：1.连接资源管理：RAII 封装客户端 socket（unique_ptr<Socket>）、Channel、输入/输出 Buffer
+      2.事件处理及回调
+      3.数据发送
+      4.超时检测
+```
+### TcpServer
+```bash
+项目的框架，上接回显，下接底层组件。
+作用：1.管理MainLoop、多个SubLoop和线程池。
+      2.设置各种回调（新连接、消息、关闭、超时等）
+      3.新连接到来时轮询分配到SubLoop
+```
+### Buffer
+```bash
+解决网络编程中的粘包/半包问题
+```
+### ThreadPool
+```bash
+1.IO线程池（TcpServer）,负责传输数据
+2.工作线程池 (EchoServer)，负责处理数据（添加前缀、解析协议、数据库查询...）
+```
+### Timestamp
+```bash
+轻量级时间戳工具，用来记录时间点，并提供方便的查询和格式化功能。
+作用：1.连接超时监测（Connection，EventLoop）
+      2.日志打印
+```
+### EchoServer
+```bash
+属于应用层，直接使用TcpServer实现回显业务，可以配置subreactor数目和工作线程数目
+```
+
+
+
