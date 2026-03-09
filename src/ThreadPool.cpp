@@ -8,8 +8,6 @@ ThreadPool::ThreadPool(size_t threadnum,const std::string& threadtype):stop_(fal
         // 用lambda函创建线程。
 		threads_.emplace_back([this]
         {
-            printf("create %s thread(%ld).\n",threadtype_.c_str(),syscall(SYS_gettid));     // 显示线程ID。
-
 			while (stop_==false)
 			{
                 

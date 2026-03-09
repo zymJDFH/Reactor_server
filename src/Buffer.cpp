@@ -67,6 +67,8 @@ bool Buffer::pickmessage(std::string &ss)
     }
     else if (sep_==1)          // 四字节的报头。
     {
+        if (buf_.size()<4) return false;
+
         int len;
         memcpy(&len,buf_.data(),4);             // 从buf_中获取报文头部。
 
@@ -74,6 +76,15 @@ bool Buffer::pickmessage(std::string &ss)
 
         ss=buf_.substr(4,len);                        // 从buf_中获取一个报文。
         buf_.erase(0,len+4);                          // 从buf_中删除刚才已获取的报文。
+    }
+    else if (sep_==2)          // HTTP 头部以 "\r\n\r\n" 作为分隔。
+    {
+        const std::string delimiter="\r\n\r\n";
+        size_t pos=buf_.find(delimiter);
+        if (pos==std::string::npos) return false;
+
+        ss=buf_.substr(0,pos);
+        buf_.erase(0,pos+delimiter.size());
     }
 
     return true;

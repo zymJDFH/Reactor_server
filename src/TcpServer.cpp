@@ -36,16 +36,13 @@ void TcpServer::start(){
 }
 void TcpServer::stop(){
     mainloop_->stop();
-    printf("主事件循环已经停止\n");
 
     //停止从事件循环
     for(int i=0;i<threadnum_;i++){
         subloops_[i]->stop();
     }
-    printf("从事件循环停止\n");
     //停止io线程
     threadpool_.stop();
-    printf("IO线程池停止\n");
 
 }
 void TcpServer::newconnection(std::unique_ptr<Socket>clientsock){
@@ -64,6 +61,7 @@ void TcpServer::newconnection(std::unique_ptr<Socket>clientsock){
         conns_[conn->fd()]=conn;
     }
     subloops_[subloop_idx]->newconnection(conn);
+    conn->connectestablished();
     if(newconnectioncb_)newconnectioncb_(conn);
 
 }

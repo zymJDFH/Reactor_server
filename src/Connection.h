@@ -40,6 +40,7 @@ public:
     void seterrorcallback(std::function<void(spConnection)>fn);
     void setonmessagecallback(std::function<void(spConnection,std::string&)>fn);
     void setsendcompletecallback(std::function<void(spConnection)>fn);
+    void connectestablished();    // 连接建立后启用读事件
 
     void onmessage();
     void send(const char *data,size_t size);
@@ -47,4 +48,3 @@ public:
     void sendinloop(std::shared_ptr<std::string>data);
     bool timeout(time_t now,int val);
 };
-

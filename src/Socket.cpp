@@ -50,7 +50,7 @@ int Socket::accept(InetAddress& clientaddr){
     sockaddr_in peeraddr;
     socklen_t len = sizeof(peeraddr);
     int clientfd = accept4(fd_, (sockaddr*)&peeraddr, &len, SOCK_NONBLOCK);
-    clientaddr.setAddr(peeraddr);
+    if (clientfd >= 0) clientaddr.setAddr(peeraddr);
     return clientfd;
 }
 std::string Socket::ip()const{

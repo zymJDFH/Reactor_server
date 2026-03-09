@@ -24,10 +24,22 @@ Acceptor::~Acceptor(){
 #include "Connection.h"
 //处理新客户端的连接请求
 void Acceptor::newconnection(){
-    InetAddress clientaddr;
-    std::unique_ptr<Socket>clientsock(new Socket(servsock_.accept(clientaddr)));
-    clientsock->setipport(clientaddr.ip(),clientaddr.port());
-    newconnectioncb_(std::move(clientsock));    //回调TcpServer::newconnection
+    while (true)
+    {
+        InetAddress clientaddr;
+        int clientfd = servsock_.accept(clientaddr);
+        if (clientfd < 0)
+        {
+            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) break;
+            if (errno == EINTR) continue;
+            perror("accept() failed");
+            break;
+        }
+
+        std::unique_ptr<Socket> clientsock(new Socket(clientfd));
+        clientsock->setipport(clientaddr.ip(),clientaddr.port());
+        newconnectioncb_(std::move(clientsock));    //回调TcpServer::newconnection
+    }
 }
 
 void Acceptor::setnewconnectioncb(std::function<void(std::unique_ptr<Socket>)>fn){

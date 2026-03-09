@@ -21,21 +21,17 @@ void EchoServer::Start(){
 }
 void EchoServer::Stop(){
     threadpool_.stop();
-    printf("工作线程已停止\n");
     tcpserver_.stop();
     
 }
 void EchoServer::HandleNewConnection(spConnection conn){
-    
-    //根据业务需求可以添加其他代码
-    printf("%s new connection(fd=%d,ip=%s,port=%d) ok.\n",Timestamp::now().tostring().c_str(),conn->fd(),conn->ip().c_str(),conn->port());
+    (void)conn;
 }
 void EchoServer::HandleClose(spConnection conn){
-  
-    printf("%s connection closed(fd=%d,ip=%s,port=%d) ok.\n",Timestamp::now().tostring().c_str(),conn->fd(),conn->ip().c_str(),conn->port());
+    (void)conn;
 }
 void EchoServer::HandleError(spConnection conn){
-    std::cout<<"EchoServer conn error."<<std::endl;
+    (void)conn;
 }
 void EchoServer::HandleMessage(spConnection conn,std::string &message){
     //printf("EchoServer::HandleMessage() thread is %ld.\n",syscall(SYS_gettid));
@@ -50,8 +46,15 @@ void EchoServer::HandleMessage(spConnection conn,std::string &message){
 //处理客户端的请求报文，用于添加给线程池
 void EchoServer::OnMessage(spConnection conn,std::string &message){
    // printf("%s message (eventfd=%d):%s\n",Timestamp::now().tostring().c_str(),conn->fd(),message.c_str());
-    message ="reply:"+message;  //回显业务
-    conn->send(message.data(),message.size());  //发送数据
+    static const std::string body="ok";
+    std::string response;
+    response.append("HTTP/1.1 200 OK\r\n");
+    response.append("Content-Type: text/plain\r\n");
+    response.append("Content-Length: "+std::to_string(body.size())+"\r\n");
+    response.append("Connection: keep-alive\r\n");
+    response.append("\r\n");
+    response.append(body);
+    conn->send(response.data(),response.size());  // 发送 HTTP 响应
 }
 
 void EchoServer::HandleSendComplete(spConnection conn){

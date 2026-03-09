@@ -18,6 +18,10 @@ private:
     std::function<void()>closecallback_;
     std::function<void()>errorcallback_;
     std::function<void()>writecallback_;
+    std::weak_ptr<void> tie_;
+    bool tied_=false;
+
+    void handleeventwithguard();
 public:
     Channel( EventLoop *loop,int fd);
     ~Channel();
@@ -38,6 +42,7 @@ public:
     void setinepoll();
     void setrevents(uint32_t ev);
     void handleevent();
+    void tie(const std::shared_ptr<void> &obj);
     
     void setreadcallback(std::function<void()>fn);
     void seterrorcallback(std::function<void()>fn);

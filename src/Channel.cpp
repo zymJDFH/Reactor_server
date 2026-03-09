@@ -46,15 +46,28 @@ void Channel::setrevents(uint32_t ev){
     revents_=ev;
 }
 void Channel::handleevent(){
+    if (tied_)
+    {
+        std::shared_ptr<void> guard=tie_.lock();
+        if (guard) handleeventwithguard();
+        return;
+    }
+    handleeventwithguard();
+}
+void Channel::tie(const std::shared_ptr<void> &obj){
+    tie_=obj;
+    tied_=true;
+}
+void Channel::handleeventwithguard(){
     if(revents_&EPOLLRDHUP){//异常断开场景 半关闭处理
-        closecallback_(); 
+        if(closecallback_) closecallback_(); 
     }else if(revents_&(EPOLLIN|EPOLLPRI)){
-        readcallback_();
+        if(readcallback_) readcallback_();
     }
     else if(revents_&EPOLLOUT){
-        writecallback_();
+        if(writecallback_) writecallback_();
     }else{//其他事件都为错误
-        errorcallback_(); 
+        if(errorcallback_) errorcallback_(); 
     }
                 
 }
@@ -75,11 +88,11 @@ void Channel::setwritecallback(std::function<void()>fn){
 void Channel::disableall(){
     //取消全部事件
     events_=0;
-    loop_->updatechannel(this);
     
 }     
 void Channel::remove(){
     //从事件循环中删除Channel  
     disableall();
     loop_->removechannel(this);//从红黑树上删除fd
+    inepoll_=false;
 }              

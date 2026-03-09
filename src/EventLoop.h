@@ -9,6 +9,7 @@
 #include <queue>
 #include <mutex>
 #include <map>
+#include <vector>
 #include <sys/timerfd.h>
 #include "Connection.h"
 #include <atomic>
@@ -31,6 +32,7 @@ private:
     bool mainloop_; 
     std::mutex mmutex_;     //保护conns_的互斥锁
     std::map<int,spConnection>conns_;   //存放运行在该事件循环上的全部Connection对象
+    std::vector<spConnection> pendingcloseconns_;   // 延迟关闭，避免当前epoll事件列表中的悬空指针
     std::function<void(int)>timercallback_;
     int timetvl_;
     int timeout_;
@@ -50,5 +52,6 @@ public:
     void handlewakeup();
     void handletimer();
     void newconnection(spConnection conn);  //把Connection对象存放在conns_中
+    void removeconnection(int fd);          //从conns_中移除Connection对象
     void settimercallback(std::function<void(int)>fn);
 };

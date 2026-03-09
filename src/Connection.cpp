@@ -1,6 +1,6 @@
 #include "Connection.h"
 Connection::Connection(EventLoop *loop,std::unique_ptr<Socket> clientsock)
-            :loop_(loop),clientsock_(std::move(clientsock)),disconnect_(false),clientchannel_(new Channel(loop_,clientsock_->fd()))
+            :loop_(loop),clientsock_(std::move(clientsock)),clientchannel_(new Channel(loop_,clientsock_->fd())),inputbuffer_(2),outputbuffer_(0),disconnect_(false)
 {
     //clientchannel_(new Channel(loop_,clientsock->fd()));
     clientchannel_->setreadcallback(std::bind(&Connection::onmessage,this));
@@ -8,7 +8,6 @@ Connection::Connection(EventLoop *loop,std::unique_ptr<Socket> clientsock)
     clientchannel_->setwritecallback(std::bind(&Connection::writecallback,this));
     clientchannel_->seterrorcallback(std::bind(&Connection::errorcallback,this));
     clientchannel_->useet();
-    clientchannel_->enablereading();
 }
 Connection::~Connection(){
     //printf("Connection 已析构\n");
@@ -24,15 +23,18 @@ uint16_t Connection::port()const{
 } 
 
 void Connection::closecallback(){
-    
-    disconnect_=true;
+    if(disconnect_.exchange(true)) return;
+    spConnection self=shared_from_this();
     clientchannel_->remove();
-    closecallback_(shared_from_this());
+    loop_->removeconnection(fd());
+    if(closecallback_) closecallback_(self);
 }
 void Connection::errorcallback(){
-    disconnect_=true;
+    if(disconnect_.exchange(true)) return;
+    spConnection self=shared_from_this();
     clientchannel_->remove();
-    errorcallback_(shared_from_this());
+    loop_->removeconnection(fd());
+    if(errorcallback_) errorcallback_(self);
 }
 
 void Connection::setclosecallback(std::function<void(spConnection)>fn){
@@ -43,6 +45,10 @@ void Connection::seterrorcallback(std::function<void(spConnection)>fn){
 }
 void Connection::setonmessagecallback(std::function<void(spConnection,std::string&)>fn){
     onmessagecallback_=fn;
+}
+void Connection::connectestablished(){
+    clientchannel_->tie(shared_from_this());
+    clientchannel_->enablereading();
 }
 //处理对端发送过来的消息
 void Connection::onmessage(){
@@ -70,14 +76,17 @@ void Connection::onmessage(){
             closecallback();        
             break;
         }
+        else{
+            errorcallback();
+            break;
+        }
     }    
 }
 void Connection::send(const char *data,size_t size){
     if(disconnect_==true){
-        printf("客户端连接已经断开，send()直接返回\n");
         return ;
     }
-    std::shared_ptr<std::string> message(new std::string(data));
+    std::shared_ptr<std::string> message(new std::string(data,size));
     //判断当前线程是否为IO线程
     if(loop_->isinloopthread()){
         //如果当前线程是IO线程，直接调用sendinloop()发送数据
@@ -87,11 +96,15 @@ void Connection::send(const char *data,size_t size){
     else{
         //如果当前线程不是IO线程，调用EventLoop::queueinloop(),把sendinloop()交给事件循环线程去执行
         //printf("send()不在事件循环的线程中\n");
-        loop_->queueinloop(std::bind(&Connection::sendinloop,this,message));
+        spConnection self=shared_from_this();
+        loop_->queueinloop([self,message](){
+            self->sendinloop(message);
+        });
     }
     
 }
 void Connection::sendinloop(std::shared_ptr<std::string>data){
+    if(disconnect_==true) return;
     outputbuffer_.appendwithsep(data->data(),data->size());
     clientchannel_->enablewriting();
 }
@@ -99,10 +112,13 @@ void Connection::writecallback(){
     int writen=::send(fd(),outputbuffer_.data(),outputbuffer_.size(),0);
     if(writen>0){
         outputbuffer_.erase(0,writen);//删除已发送字节数
+    }else if((writen==-1) && (errno!=EAGAIN) && (errno!=EWOULDBLOCK) && (errno!=EINTR)){
+        errorcallback();
+        return;
     }
     if(outputbuffer_.size()==0){
         clientchannel_->disablewriting();
-        sendcompletecallback_(shared_from_this());
+        if(sendcompletecallback_) sendcompletecallback_(shared_from_this());
     }
 }
 
@@ -112,4 +128,3 @@ void Connection::setsendcompletecallback(std::function<void(spConnection)>fn){
 bool Connection::timeout(time_t now,int val){
     return now-lasttime_.toint()>val;
 }
-

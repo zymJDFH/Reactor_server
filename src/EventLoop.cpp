@@ -11,7 +11,7 @@ int createtimerfd(int sec=30)
 }
 
 EventLoop::EventLoop(bool mainloop,int timetvl,int timeout)
-    :ep_(new Epoll),mainloop_(mainloop),timetvl_(timetvl),timeout_(timeout),stop_(false)
+    :ep_(new Epoll),threadid_(0),mainloop_(mainloop),timetvl_(timetvl),timeout_(timeout),stop_(false)
     ,wakeupfd_(eventfd(0,EFD_NONBLOCK)),wakeupchannel_(new Channel(this,wakeupfd_)),
     timerfd_(createtimerfd(timeout)),timerchannel_(new Channel(this,timerfd_))
 {
@@ -29,11 +29,18 @@ void EventLoop::run(){
     while(stop_==false){
         std::vector<Channel*>channels=ep_->loop(10*1000);
         if(channels.size()==0){
-            epolltimeoutcallback_(this);
+            if(epolltimeoutcallback_) epolltimeoutcallback_(this);
         }else{
             for(auto &ch:channels){
                 ch->handleevent();
             }
+        }
+
+        if (!pendingcloseconns_.empty())
+        {
+            std::vector<spConnection> timeoutconns=std::move(pendingcloseconns_);
+            pendingcloseconns_.clear();
+            for (auto &conn:timeoutconns) conn->closecallback();
         }
     }
 }
@@ -72,39 +79,47 @@ void EventLoop::wakeup(){
 void EventLoop::handlewakeup(){
     uint64_t val;
     read(wakeupfd_,&val,sizeof(val));   //从eventfd中读取数据，如果不读取，eventfd的读事件会一直触发
-    std::function<void()>fn;
+    std::queue<std::function<void()>> tasks;
+    {
+        std::lock_guard<std::mutex>gd(mutex_);
+        std::swap(tasks,taskqueue_);
+    }
 
-    std::lock_guard<std::mutex>gd(mutex_);
-    //执行队列中的全部任务
-    while(taskqueue_.size()>0){
-        fn=std::move(taskqueue_.front());
-        taskqueue_.pop();
+    while(tasks.size()>0){
+        std::function<void()> fn=std::move(tasks.front());
+        tasks.pop();
         fn();
     }
 }
 void EventLoop::handletimer(){
+    uint64_t expirations=0;
+    ssize_t n=read(timerfd_,&expirations,sizeof(expirations));
+    if ((n==-1) && (errno!=EAGAIN) && (errno!=EWOULDBLOCK) && (errno!=EINTR))
+    {
+        perror("read(timerfd_) failed");
+    }
+
     struct itimerspec timeout;                                // 定时时间的数据结构。
     memset(&timeout,0,sizeof(struct itimerspec));
     timeout.it_value.tv_sec = timetvl_;                             // 定时时间，固定为5，方便测试。
     timeout.it_value.tv_nsec = 0;
     timerfd_settime(timerfd_,0,&timeout,0);
-    if(mainloop_){
-       
-    }else{
-        time_t now=time(0);
-        for (auto it=conns_.begin();it!=conns_.end();)
+    if(mainloop_) return;
+
+    time_t now=time(0);
+    std::vector<spConnection> timeoutconns;
+    {
+        std::lock_guard<std::mutex> gd(mmutex_);
+        for (auto &it:conns_)
         {
-            printf(" %d",it->first);
-            if (it->second->timeout(now,timeout_)) 
+            if (it.second->timeout(now,timeout_))
             {
-                printf("EventLoop::handletimer()1  thread is %ld.\n",syscall(SYS_gettid)); 
-                timercallback_(it->first);             // 从TcpServer的map中删除超时的conn。
-                std::lock_guard<std::mutex> gd(mmutex_);
-                it = conns_.erase(it);                // 从EventLoop的map中删除超时的conn。
-            } else it++;
+                timeoutconns.push_back(it.second);
+            } 
         }
     }
-    
+
+    pendingcloseconns_.insert(pendingcloseconns_.end(),timeoutconns.begin(),timeoutconns.end());
 }
 
 void EventLoop::newconnection(spConnection conn){
@@ -112,6 +127,10 @@ void EventLoop::newconnection(spConnection conn){
         std::lock_guard<std::mutex>gd(mmutex_);
         conns_[conn->fd()]=conn;    
     }
+}
+void EventLoop::removeconnection(int fd){
+    std::lock_guard<std::mutex>gd(mmutex_);
+    conns_.erase(fd);
 }
 void EventLoop::settimercallback(std::function<void(int)>fn){
     timercallback_=fn;
